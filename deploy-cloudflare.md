@@ -132,7 +132,12 @@ npm run build:static
 npx wrangler pages deploy dist-deploy --force --project-name=ai-interview-portal --branch=main --commit-dirty=true
 ```
 
-See the `Jenkinsfile` header for the Docker-agent vs NodeJS-plugin options.
+The pipeline targets a **Windows Jenkins host running the build inside a Linux
+Docker container** (Docker Desktop or Rancher Desktop in Linux-container mode).
+Because steps run inside the Linux container they use `sh`, not `bat`. Requires
+the **Docker** + **Docker Pipeline** plugins and a `docker` CLI reachable by the
+Jenkins agent's account. See the `Jenkinsfile` header for the full host
+requirements and a fallback if the workspace mount misbehaves.
 
 ---
 
