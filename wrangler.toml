@@ -1,0 +1,7 @@
+# Cloudflare Pages config for the static (mock-mode) frontend deploy.
+# The combined build output of all 6 microfrontends lives in dist-deploy/
+# (see scripts/build-static.mjs). With pages_build_output_dir set, you can run
+# `wrangler pages deploy` with no directory argument.
+name = "ai-interview-portal"
+pages_build_output_dir = "dist-deploy"
+compatibility_date = "2026-07-11"

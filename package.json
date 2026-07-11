@@ -12,11 +12,14 @@
     "build": "npm run build -w @aip/mfe-auth -w @aip/mfe-dashboard -w @aip/mfe-interview -w @aip/mfe-results -w @aip/mfe-admin -w @aip/shell",
     "preview": "concurrently -k -n auth,dash,interview,results,admin,shell -c blue,green,yellow,magenta,red,cyan \"npm:preview -w @aip/mfe-auth\" \"npm:preview -w @aip/mfe-dashboard\" \"npm:preview -w @aip/mfe-interview\" \"npm:preview -w @aip/mfe-results\" \"npm:preview -w @aip/mfe-admin\" \"npm:preview -w @aip/shell\"",
     "dev:real": "cross-env VITE_API_MODE=real npm run dev",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build:static": "node scripts/build-static.mjs",
+    "deploy": "npm run build:static && wrangler pages deploy --force"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "wrangler": "^4.0.0"
   },
   "engines": {
     "node": ">=20.0.0"
