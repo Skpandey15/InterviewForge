@@ -1,0 +1,23 @@
+{
+  "name": "@aip/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared design system, mock API layer, auth store and types for the AI Interview Portal microfrontends",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/global.css"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

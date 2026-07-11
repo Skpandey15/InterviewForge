@@ -1,0 +1,201 @@
+# All six microfrontends: identical shape, one nginx Deployment + Service each.
+# Images are built from Dockerfile.frontend with --build-arg APP=<name>;
+# the shell image additionally bakes in REMOTE_*_URL and VITE_API_* args
+# (see k8s/README.md for the exact build commands).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shell
+  namespace: aip-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: shell }
+  template:
+    metadata:
+      labels: { app: shell }
+    spec:
+      containers:
+        - name: shell
+          image: aip/shell:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shell
+  namespace: aip-frontend
+spec:
+  selector: { app: shell }
+  ports: [{ port: 80 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mfe-auth
+  namespace: aip-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mfe-auth }
+  template:
+    metadata:
+      labels: { app: mfe-auth }
+    spec:
+      containers:
+        - name: mfe-auth
+          image: aip/mfe-auth:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          readinessProbe:
+            httpGet: { path: /remoteEntry.js, port: 80 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mfe-auth
+  namespace: aip-frontend
+spec:
+  selector: { app: mfe-auth }
+  ports: [{ port: 80 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mfe-dashboard
+  namespace: aip-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mfe-dashboard }
+  template:
+    metadata:
+      labels: { app: mfe-dashboard }
+    spec:
+      containers:
+        - name: mfe-dashboard
+          image: aip/mfe-dashboard:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          readinessProbe:
+            httpGet: { path: /remoteEntry.js, port: 80 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mfe-dashboard
+  namespace: aip-frontend
+spec:
+  selector: { app: mfe-dashboard }
+  ports: [{ port: 80 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mfe-interview
+  namespace: aip-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mfe-interview }
+  template:
+    metadata:
+      labels: { app: mfe-interview }
+    spec:
+      containers:
+        - name: mfe-interview
+          image: aip/mfe-interview:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          readinessProbe:
+            httpGet: { path: /remoteEntry.js, port: 80 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mfe-interview
+  namespace: aip-frontend
+spec:
+  selector: { app: mfe-interview }
+  ports: [{ port: 80 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mfe-results
+  namespace: aip-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mfe-results }
+  template:
+    metadata:
+      labels: { app: mfe-results }
+    spec:
+      containers:
+        - name: mfe-results
+          image: aip/mfe-results:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          readinessProbe:
+            httpGet: { path: /remoteEntry.js, port: 80 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mfe-results
+  namespace: aip-frontend
+spec:
+  selector: { app: mfe-results }
+  ports: [{ port: 80 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mfe-admin
+  namespace: aip-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mfe-admin }
+  template:
+    metadata:
+      labels: { app: mfe-admin }
+    spec:
+      containers:
+        - name: mfe-admin
+          image: aip/mfe-admin:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          readinessProbe:
+            httpGet: { path: /remoteEntry.js, port: 80 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mfe-admin
+  namespace: aip-frontend
+spec:
+  selector: { app: mfe-admin }
+  ports: [{ port: 80 }]

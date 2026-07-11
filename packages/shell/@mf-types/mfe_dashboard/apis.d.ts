@@ -1,0 +1,3 @@
+
+    export type RemoteKeys = 'mfe_dashboard/DashboardPage' | 'mfe_dashboard/MyInterviewsPage' | 'mfe_dashboard/ProfilePage' | 'mfe_dashboard/SettingsPage' | 'mfe_dashboard/HelpPage';
+    type PackageType<T> = T extends 'mfe_dashboard/HelpPage' ? typeof import('mfe_dashboard/HelpPage') :T extends 'mfe_dashboard/SettingsPage' ? typeof import('mfe_dashboard/SettingsPage') :T extends 'mfe_dashboard/ProfilePage' ? typeof import('mfe_dashboard/ProfilePage') :T extends 'mfe_dashboard/MyInterviewsPage' ? typeof import('mfe_dashboard/MyInterviewsPage') :T extends 'mfe_dashboard/DashboardPage' ? typeof import('mfe_dashboard/DashboardPage') :any;

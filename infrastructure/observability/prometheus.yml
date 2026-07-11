@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 10s
+
+# Services run on the host during local dev; Prometheus runs in Docker.
+scrape_configs:
+  - job_name: gateway-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+
+  - job_name: auth-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8083"]
+
+  - job_name: interview-platform
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8082"]
+
+  - job_name: notification-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8084"]
+
+  - job_name: ai-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8090"]

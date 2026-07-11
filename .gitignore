@@ -1,0 +1,21 @@
+node_modules/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vite/
+
+# Backend
+target/
+.tools/
+.venv/
+__pycache__/
+*.pyc
+logs/
+
+# IDE
+.idea/
+*.iml

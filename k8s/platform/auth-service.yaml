@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: aip-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: aip/auth-service:latest
+          imagePullPolicy: IfNotPresent   # k3d: import via `k3d image import`
+          ports:
+            - containerPort: 8083
+          env:
+            - name: AIP_AUTH_DB_URL
+              value: jdbc:postgresql://postgres.aip-data.svc.cluster.local:5432/auth_db
+            - name: AIP_DB_USER
+              value: aip
+            - name: AIP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aip-secrets
+                  key: db-password
+            - name: AIP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aip-secrets
+                  key: jwt-secret
+            - name: AIP_CORS_ORIGINS
+              value: http://aip.localtest.me:8081
+            # Dev cluster only: seeds the demo accounts.
+            - name: SPRING_PROFILES_ACTIVE
+              value: local
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: aip-platform
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 80
+      targetPort: 8083

@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: interview-platform
+  namespace: aip-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: interview-platform
+  template:
+    metadata:
+      labels:
+        app: interview-platform
+    spec:
+      containers:
+        - name: interview-platform
+          image: aip/interview-platform:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+          env:
+            - name: AIP_INTERVIEW_DB_URL
+              value: jdbc:postgresql://postgres.aip-data.svc.cluster.local:5432/interview_db
+            - name: AIP_DB_USER
+              value: aip
+            - name: AIP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aip-secrets
+                  key: db-password
+            - name: AIP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aip-secrets
+                  key: jwt-secret
+            - name: AIP_KAFKA_BOOTSTRAP
+              value: kafka.aip-data.svc.cluster.local:9092
+            - name: AIP_AI_GATEWAY_URL
+              value: http://ai-gateway.aip-ai.svc.cluster.local:8090
+            - name: AIP_CORS_ORIGINS
+              value: http://aip.localtest.me:8081
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 25
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            initialDelaySeconds: 45
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: interview-platform
+  namespace: aip-platform
+spec:
+  selector:
+    app: interview-platform
+  ports:
+    - port: 80
+      targetPort: 8082

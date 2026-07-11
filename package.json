@@ -1,0 +1,24 @@
+{
+  "name": "ai-interview-portal",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI Interview Portal — React microfrontend platform (Module Federation)",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n auth,dash,interview,results,admin,shell -c blue,green,yellow,magenta,red,cyan \"npm:dev -w @aip/mfe-auth\" \"npm:dev -w @aip/mfe-dashboard\" \"npm:dev -w @aip/mfe-interview\" \"npm:dev -w @aip/mfe-results\" \"npm:dev -w @aip/mfe-admin\" \"npm:dev -w @aip/shell\"",
+    "build": "npm run build -w @aip/mfe-auth -w @aip/mfe-dashboard -w @aip/mfe-interview -w @aip/mfe-results -w @aip/mfe-admin -w @aip/shell",
+    "preview": "concurrently -k -n auth,dash,interview,results,admin,shell -c blue,green,yellow,magenta,red,cyan \"npm:preview -w @aip/mfe-auth\" \"npm:preview -w @aip/mfe-dashboard\" \"npm:preview -w @aip/mfe-interview\" \"npm:preview -w @aip/mfe-results\" \"npm:preview -w @aip/mfe-admin\" \"npm:preview -w @aip/shell\"",
+    "dev:real": "cross-env VITE_API_MODE=real npm run dev",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

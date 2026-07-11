@@ -1,0 +1,38 @@
+# Parameterized build for every microfrontend (context = repo root).
+#   docker build -f Dockerfile.frontend -t aip/shell --build-arg APP=shell \
+#     --build-arg VITE_API_MODE=real \
+#     --build-arg REMOTE_AUTH_URL=http://mfe-auth.aip.localtest.me:8081/remoteEntry.js \
+#     ... .
+#   docker build -f Dockerfile.frontend -t aip/mfe-auth --build-arg APP=mfe-auth .
+FROM node:22-alpine AS build
+ARG APP
+# Frontend build-time configuration (Vite inlines these).
+ARG VITE_API_MODE=mock
+ARG VITE_API_BASE_AUTH
+ARG VITE_API_BASE_INTERVIEW
+# Shell only: where the deployed remotes live.
+ARG REMOTE_AUTH_URL
+ARG REMOTE_DASHBOARD_URL
+ARG REMOTE_INTERVIEW_URL
+ARG REMOTE_RESULTS_URL
+ARG REMOTE_ADMIN_URL
+ENV VITE_API_MODE=$VITE_API_MODE \
+    VITE_API_BASE_AUTH=$VITE_API_BASE_AUTH \
+    VITE_API_BASE_INTERVIEW=$VITE_API_BASE_INTERVIEW \
+    REMOTE_AUTH_URL=$REMOTE_AUTH_URL \
+    REMOTE_DASHBOARD_URL=$REMOTE_DASHBOARD_URL \
+    REMOTE_INTERVIEW_URL=$REMOTE_INTERVIEW_URL \
+    REMOTE_RESULTS_URL=$REMOTE_RESULTS_URL \
+    REMOTE_ADMIN_URL=$REMOTE_ADMIN_URL
+
+WORKDIR /workspace
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages ./packages
+RUN npm ci --no-audit --no-fund
+RUN npm run build -w @aip/${APP}
+
+FROM nginx:1.27-alpine
+ARG APP
+COPY infrastructure/docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /workspace/packages/${APP}/dist /usr/share/nginx/html
+EXPOSE 80

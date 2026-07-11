@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${AIP_AUTH_DB_URL:jdbc:postgresql://localhost:5432/auth_db}
+    username: ${AIP_DB_USER:aip}
+    password: ${AIP_DB_PASSWORD:aip_local_pw}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
+
+# 8081 is occupied by the local k3d Traefik ingress on this machine.
+server:
+  port: ${AIP_AUTH_PORT:8083}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${AIP_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+
+aip:
+  jwt:
+    # HS256 shared secret. Override via env in every non-local environment.
+    secret: ${AIP_JWT_SECRET:local-dev-only-secret-change-me-0123456789abcdef}
+    ttl: PT8H
+    issuer: aip-auth
+  cors:
+    allowed-origins: ${AIP_CORS_ORIGINS:http://localhost:3000}

@@ -1,0 +1,73 @@
+# Traefik routing. *.localtest.me resolves to 127.0.0.1 — same pattern as
+# the existing Focus Forge ingress (your Traefik listens on :8081).
+#   Frontend:  http://aip.localtest.me:8081           (shell)
+#              http://mfe-<name>.aip.localtest.me:8081 (remotes)
+#   API:       http://api.aip.localtest.me:8081/api/v1/...
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aip-frontend
+  namespace: aip-frontend
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: aip.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: shell, port: { number: 80 } }
+    - host: mfe-auth.aip.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: mfe-auth, port: { number: 80 } }
+    - host: mfe-dashboard.aip.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: mfe-dashboard, port: { number: 80 } }
+    - host: mfe-interview.aip.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: mfe-interview, port: { number: 80 } }
+    - host: mfe-results.aip.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: mfe-results, port: { number: 80 } }
+    - host: mfe-admin.aip.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: mfe-admin, port: { number: 80 } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aip-api
+  namespace: aip-platform
+spec:
+  ingressClassName: traefik
+  rules:
+    # Phase 2: Traefik hands the whole API to Spring Cloud Gateway, which owns
+    # routing, CORS and rate limiting (ARCHITECTURE.md ADR-10).
+    - host: api.aip.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: gateway-service, port: { number: 80 } }

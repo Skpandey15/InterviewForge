@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: notification-service
+  datasource:
+    # Pragmatic schema-per-service in the shared dev Postgres (ARCHITECTURE.md §8);
+    # a dedicated database is a values change, not a code change.
+    url: ${AIP_NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/interview_db}
+    username: ${AIP_DB_USER:aip}
+    password: ${AIP_DB_PASSWORD:aip_local_pw}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: notifications
+  flyway:
+    locations: classpath:db/migration
+    schemas: notifications
+    default-schema: notifications
+  kafka:
+    bootstrap-servers: ${AIP_KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+    listener:
+      observation-enabled: true
+
+server:
+  port: ${AIP_NOTIFICATION_PORT:8084}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${AIP_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+
+aip:
+  jwt:
+    secret: ${AIP_JWT_SECRET:local-dev-only-secret-change-me-0123456789abcdef}
+  cors:
+    allowed-origins: ${AIP_CORS_ORIGINS:http://localhost:3000}

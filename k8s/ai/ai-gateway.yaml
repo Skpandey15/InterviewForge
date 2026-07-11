@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-gateway
+  namespace: aip-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-gateway
+  template:
+    metadata:
+      labels:
+        app: ai-gateway
+    spec:
+      containers:
+        - name: ai-gateway
+          image: aip/ai-gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+          env:
+            - name: AIP_KAFKA_BOOTSTRAP
+              value: kafka.aip-data.svc.cluster.local:9092
+            # Default is the deterministic mock provider. To use a real model,
+            # set AIP_LLM_PROVIDER=openai and mount OPENAI_API_KEY from a
+            # secret that exists ONLY in this namespace (ARCHITECTURE.md §9).
+            - name: AIP_LLM_PROVIDER
+              value: mock
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { memory: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-gateway
+  namespace: aip-ai
+spec:
+  selector:
+    app: ai-gateway
+  ports:
+    - port: 8090
