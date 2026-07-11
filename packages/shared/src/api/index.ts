@@ -38,6 +38,32 @@ const USERS_KEY = 'aip.users';
 const RESULTS_KEY = 'aip.results';
 const LATENCY_MS = 550;
 
+/**
+ * One-time data reset. Bump SEED_VERSION whenever the seed data changes and
+ * existing visitors should start from a clean slate: on next load we drop the
+ * stale `aip.*` data keys (but never the auth session), so localStorage is
+ * re-seeded from the current mock data instead of the version cached earlier.
+ */
+const SEED_VERSION = '2026-07-12-clean-slate';
+const SEED_VERSION_KEY = 'aip.seed.version';
+const RESETTABLE_KEYS = [
+  USERS_KEY,
+  RESULTS_KEY,
+  'aip.admin.candidates',
+  'aip.admin.questions',
+  'aip.admin.templates',
+];
+if (API_MODE === 'mock') {
+  try {
+    if (localStorage.getItem(SEED_VERSION_KEY) !== SEED_VERSION) {
+      RESETTABLE_KEYS.forEach((key) => localStorage.removeItem(key));
+      localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
+    }
+  } catch {
+    /* localStorage unavailable — nothing to reset */
+  }
+}
+
 function delay(ms = LATENCY_MS): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

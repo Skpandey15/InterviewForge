@@ -33,47 +33,15 @@ export const ADMIN_DEMO_USER: User = {
   role: 'admin',
 };
 
-export const RECENT_INTERVIEWS: InterviewSummary[] = [
-  {
-    id: 'ivw-1005',
-    technology: 'Java Backend',
-    level: 'Senior',
-    date: '2025-05-09',
-    status: 'Completed',
-    score: 85,
-  },
-  {
-    id: 'ivw-1004',
-    technology: 'Spring Boot',
-    level: 'Senior',
-    date: '2025-05-07',
-    status: 'Completed',
-    score: 82,
-  },
-  {
-    id: 'ivw-1003',
-    technology: 'System Design',
-    level: 'Senior',
-    date: '2025-05-05',
-    status: 'Completed',
-    score: 90,
-  },
-  {
-    id: 'ivw-1002',
-    technology: 'Kafka',
-    level: 'Intermediate',
-    date: '2025-05-03',
-    status: 'Completed',
-    score: 75,
-  },
-];
+/** Clean slate — no seeded interview history. Real runs are stored per-user. */
+export const RECENT_INTERVIEWS: InterviewSummary[] = [];
 
 export const DASHBOARD_DATA: DashboardData = {
   stats: {
-    upcomingInterviews: 1,
-    completedInterviews: 8,
-    averageScore: 78,
-    skillProgress: 65,
+    upcomingInterviews: 0,
+    completedInterviews: 0,
+    averageScore: 0,
+    skillProgress: 0,
   },
   recentInterviews: RECENT_INTERVIEWS,
 };

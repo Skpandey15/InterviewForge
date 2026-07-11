@@ -73,7 +73,7 @@ export const adminApi = {
     await delay(350);
     const candidates = readCollection<Candidate>(CANDIDATES_KEY, SEED_CANDIDATES);
     return {
-      stats: { ...ADMIN_STATS, totalCandidates: 120 + candidates.length },
+      stats: { ...ADMIN_STATS, totalCandidates: candidates.length },
       recentActivity: RECENT_ACTIVITY,
     };
   },
