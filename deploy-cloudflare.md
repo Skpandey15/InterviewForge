@@ -96,15 +96,36 @@ same-origin paths, so it works on any domain.
 
 ---
 
-## 6. Alternative: auto-deploy from GitHub (no CLI)
+## 6. Auto-deploy from GitHub (recommended — no CLI, no local build)
 
-Dashboard → **Workers & Pages → Create → Pages → Connect to Git**, then set:
+Cloudflare builds and deploys on every push to `main`. Nothing runs on your
+machine, so there's no Docker/RAM cost.
 
-- **Build command:** `npm run build:static`
-- **Build output directory:** `dist-deploy`
-- **Node version:** 20+
+> **Note:** the existing `ai-interview-portal` project was created via **Direct
+> Upload** (wrangler). Cloudflare can't add a Git connection to a Direct-Upload
+> project, so the Git route uses a **new** project. To keep the same
+> `ai-interview-portal.pages.dev` URL, delete the old project first
+> (Workers & Pages → ai-interview-portal → Settings → Delete) and name the new
+> Git project `ai-interview-portal`. Otherwise pick any name and you'll get a
+> new `<name>.pages.dev` URL.
 
-Cloudflare rebuilds and redeploys on every push to the branch.
+**Steps (Cloudflare dashboard):**
+
+1. **Workers & Pages → Create → Pages → Connect to Git.**
+2. Authorize Cloudflare's GitHub app and select the repo **`Skpandey15/InterviewForge`**.
+3. **Set up builds and deployments:**
+   - **Production branch:** `main`
+   - **Framework preset:** None
+   - **Build command:** `npm run build:static`
+   - **Build output directory:** `dist-deploy`
+4. **Save and Deploy.**
+
+The repo is already prepped: `.node-version` pins Node 22 and `wrangler.toml`
+sets `pages_build_output_dir = "dist-deploy"`. After the first build, every push
+to `main` auto-deploys and pull requests get preview URLs.
+
+Since Cloudflare builds on push, you don't need Jenkins — the `Jenkinsfile` can
+stay unused or be removed.
 
 ---
 
