@@ -47,3 +47,15 @@ aip:
     secret: ${AIP_JWT_SECRET:local-dev-only-secret-change-me-0123456789abcdef}
   cors:
     allowed-origins: ${AIP_CORS_ORIGINS:http://localhost:3000}
+
+# Logging: readable console (with traceId/spanId from micrometer-tracing) +
+# structured ECS JSON to a rolling file (Spring Boot 3.4 built-in structured logging).
+logging:
+  level:
+    root: INFO
+    com.aip: DEBUG
+  file:
+    name: logs/notification-service.log
+  structured:
+    format:
+      file: ecs

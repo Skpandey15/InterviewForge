@@ -234,7 +234,8 @@ public class LiveInterviewService {
             error.put("message", message);
             emitter.send(SseEmitter.event().name("error").data(toJson(error)));
             emitter.complete();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Failed to send error event to SSE stream ({}); completing with error", e.getMessage());
             emitter.completeWithError(new IllegalStateException(message));
         }
     }

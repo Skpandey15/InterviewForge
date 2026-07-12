@@ -87,3 +87,15 @@ aip:
     timeout: PT10S
   outbox:
     poll-interval-ms: 1000
+
+# Logging: readable console (with traceId/spanId from micrometer-tracing) +
+# structured ECS JSON to a rolling file (Spring Boot 3.4 built-in structured logging).
+logging:
+  level:
+    root: INFO
+    com.aip: DEBUG
+  file:
+    name: logs/interview-platform.log
+  structured:
+    format:
+      file: ecs

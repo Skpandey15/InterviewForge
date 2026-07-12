@@ -57,3 +57,15 @@ management:
   otlp:
     tracing:
       endpoint: ${AIP_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+
+# Logging: readable console (with traceId/spanId from micrometer-tracing) +
+# structured ECS JSON to a rolling file (Spring Boot 3.4 built-in structured logging).
+logging:
+  level:
+    root: INFO
+    com.aip: DEBUG
+  file:
+    name: logs/gateway-service.log
+  structured:
+    format:
+      file: ecs

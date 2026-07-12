@@ -8,9 +8,13 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, StreamingResponse
+from opentelemetry import trace as otel_trace
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import config, telemetry
 from .events import EvaluationWorker
@@ -48,6 +52,45 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+# ---------- Consistent error contract (mirrors the Java GlobalExceptionHandler) ----------
+
+def _current_trace_id() -> str | None:
+    context = otel_trace.get_current_span().get_span_context()
+    return format(context.trace_id, "032x") if context and context.trace_id else None
+
+
+def _error_body(status: int, error: str, message: str, path: str) -> dict:
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "status": status,
+        "error": error,
+        "message": message,
+        "path": path,
+        "traceId": _current_trace_id(),
+    }
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(status_code=exc.status_code,
+                        content=_error_body(exc.status_code, "HTTP Error", str(exc.detail), request.url.path))
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    message = "; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors())
+    return JSONResponse(status_code=422,
+                        content=_error_body(422, "Validation Error", message, request.url.path))
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    log.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500,
+                        content=_error_body(500, "Internal Server Error",
+                                            "An unexpected error occurred.", request.url.path))
 
 
 @app.get("/healthz")
