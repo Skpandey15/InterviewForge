@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useNavigate } from 'react-router';
 import {
   Badge,
   Button,
@@ -11,7 +12,9 @@ import {
   TextField,
   adminApi,
   toast,
+  useAuth,
   type Candidate,
+  type Interviewer,
   type InterviewTemplate,
 } from '@aip/shared';
 
@@ -33,11 +36,17 @@ function parseCsv(text: string): Array<{ name: string; email: string; technology
 }
 
 export default function CandidatesPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [templates, setTemplates] = useState<InterviewTemplate[]>([]);
+  const [interviewers, setInterviewers] = useState<Interviewer[]>([]);
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<Candidate | null>(null);
+  const [interviewerTarget, setInterviewerTarget] = useState<Candidate | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,11 +54,17 @@ export default function CandidatesPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newTech, setNewTech] = useState(TECHNOLOGIES[0].label);
   const [assignTemplate, setAssignTemplate] = useState('');
+  const [pickedInterviewer, setPickedInterviewer] = useState('');
 
   const reload = useCallback(async () => {
-    const [list, tpls] = await Promise.all([adminApi.getCandidates(), adminApi.getTemplates()]);
+    const [list, tpls, ints] = await Promise.all([
+      adminApi.getCandidates(),
+      adminApi.getTemplates(),
+      adminApi.getInterviewers(),
+    ]);
     setCandidates(list);
     setTemplates(tpls);
+    setInterviewers(ints);
   }, []);
 
   useEffect(() => {
@@ -120,6 +135,20 @@ export default function CandidatesPage() {
     }
   };
 
+  const handleAssignInterviewer = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!interviewerTarget || !pickedInterviewer) return;
+    setBusy(true);
+    try {
+      await adminApi.assignInterviewer(interviewerTarget.id, pickedInterviewer);
+      toast(`${pickedInterviewer} assigned to ${interviewerTarget.name}.`, 'success');
+      setInterviewerTarget(null);
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleToggle = async (candidate: Candidate) => {
     const updated = await adminApi.toggleCandidateStatus(candidate.id);
     toast(`${updated.name} is now ${updated.status.toLowerCase()}.`, 'info');
@@ -174,6 +203,7 @@ export default function CandidatesPage() {
                 <th>Candidate</th>
                 <th>Technology</th>
                 <th>Assigned Interview</th>
+                <th>Interviewer</th>
                 <th>Progress</th>
                 <th>Score</th>
                 <th>Status</th>
@@ -189,6 +219,7 @@ export default function CandidatesPage() {
                   </td>
                   <td>{candidate.technology}</td>
                   <td>{candidate.assignedInterview ?? <span className="adm-muted">Not assigned</span>}</td>
+                  <td>{candidate.assignedInterviewer ?? <span className="adm-muted">—</span>}</td>
                   <td>
                     <Badge tone={progressTone(candidate.progress)}>{candidate.progress}</Badge>
                   </td>
@@ -208,6 +239,25 @@ export default function CandidatesPage() {
                       >
                         <Icon name="play" size={12} /> Assign
                       </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className="data-table__view"
+                          onClick={() => {
+                            setInterviewerTarget(candidate);
+                            setPickedInterviewer(interviewers[0]?.name ?? '');
+                          }}
+                        >
+                          <Icon name="user" size={12} /> Interviewer
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="data-table__view"
+                        onClick={() => navigate('/admin/feedback')}
+                      >
+                        <Icon name="message-square" size={12} /> Feedback
+                      </button>
                       <button type="button" className="adm-link-danger" onClick={() => handleToggle(candidate)}>
                         {candidate.status === 'Active' ? 'Disable' : 'Enable'}
                       </button>
@@ -217,7 +267,7 @@ export default function CandidatesPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="block-state">No candidates match “{search}”.</div>
                   </td>
                 </tr>
@@ -260,6 +310,28 @@ export default function CandidatesPage() {
             />
             <Button type="submit" block loading={busy}>
               Assign Interview
+            </Button>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        title={`Assign Interviewer — ${interviewerTarget?.name ?? ''}`}
+        open={interviewerTarget !== null}
+        onClose={() => setInterviewerTarget(null)}
+      >
+        {interviewers.length === 0 ? (
+          <p>No interviewers available.</p>
+        ) : (
+          <form className="adm-form" onSubmit={handleAssignInterviewer}>
+            <SelectField
+              label="Interviewer"
+              options={interviewers.map((i) => ({ value: i.name, label: `${i.name} — ${i.expertise}` }))}
+              value={pickedInterviewer}
+              onChange={(e) => setPickedInterviewer(e.target.value)}
+            />
+            <Button type="submit" block loading={busy}>
+              Assign Interviewer
             </Button>
           </form>
         )}

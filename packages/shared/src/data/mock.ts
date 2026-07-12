@@ -17,6 +17,11 @@ export const ADMIN_DEMO_CREDENTIALS = {
   password: 'Admin@123',
 } as const;
 
+export const INTERVIEWER_DEMO_CREDENTIALS = {
+  email: 'interviewer@demo.com',
+  password: 'Interview@123',
+} as const;
+
 export const DEMO_USER: User = {
   id: 'usr-demo-001',
   name: 'Sunil Kumar',
@@ -31,6 +36,14 @@ export const ADMIN_DEMO_USER: User = {
   email: ADMIN_DEMO_CREDENTIALS.email,
   mobile: '+91 99887 76655',
   role: 'admin',
+};
+
+export const INTERVIEWER_DEMO_USER: User = {
+  id: 'usr-int-001',
+  name: 'Rahul Mehta',
+  email: INTERVIEWER_DEMO_CREDENTIALS.email,
+  mobile: '+91 98111 22334',
+  role: 'interviewer',
 };
 
 /** Clean slate — no seeded interview history. Real runs are stored per-user. */

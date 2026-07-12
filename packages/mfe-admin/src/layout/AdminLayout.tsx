@@ -1,11 +1,15 @@
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { Icon, Logo, api, toast, useAuth, type IconName } from '@aip/shared';
 
+type StaffRole = 'admin' | 'interviewer';
+
 interface NavItem {
   to: string;
   label: string;
   icon: IconName;
   end?: boolean;
+  /** Omitted = visible to all staff; otherwise restricted to these roles. */
+  roles?: StaffRole[];
 }
 
 /*
@@ -17,14 +21,18 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin', label: 'Dashboard', icon: 'home', end: true },
   { to: '/admin/candidates', label: 'Candidates', icon: 'users' },
   { to: '/admin/builder', label: 'Interview Builder', icon: 'edit' },
-  { to: '/admin/questions', label: 'Question Bank', icon: 'file-text' },
-  { to: '/admin/analytics', label: 'Analytics', icon: 'pie-chart' },
-  { to: '/admin/reports', label: 'Reports', icon: 'download' },
+  { to: '/admin/feedback', label: 'Feedback', icon: 'message-square' },
+  { to: '/admin/questions', label: 'Question Bank', icon: 'file-text', roles: ['admin'] },
+  { to: '/admin/technologies', label: 'Technologies', icon: 'layers', roles: ['admin'] },
+  { to: '/admin/analytics', label: 'Analytics', icon: 'pie-chart', roles: ['admin'] },
+  { to: '/admin/reports', label: 'Reports', icon: 'download', roles: ['admin'] },
 ];
 
 export function AdminLayout() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const role: StaffRole = user?.role === 'interviewer' ? 'interviewer' : 'admin';
+  const navItems = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
 
   const handleLogout = async () => {
     await api.logout();
@@ -37,10 +45,10 @@ export function AdminLayout() {
       <aside className="adm-sidebar">
         <div className="adm-sidebar__brand">
           <Logo size="sm" />
-          <span className="adm-sidebar__role-badge">ADMIN</span>
+          <span className="adm-sidebar__role-badge">{role === 'interviewer' ? 'INTERVIEWER' : 'ADMIN'}</span>
         </div>
-        <nav className="adm-sidebar__nav" aria-label="Admin navigation">
-          {NAV_ITEMS.map((item) => (
+        <nav className="adm-sidebar__nav" aria-label="Staff navigation">
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -64,7 +72,7 @@ export function AdminLayout() {
             </span>
             <div className="adm-sidebar__user-meta">
               <strong>{user?.name ?? 'Admin'}</strong>
-              <small>Interview Manager</small>
+              <small>{role === 'interviewer' ? 'Interviewer' : 'Interview Manager'}</small>
             </div>
           </div>
           <button type="button" className="adm-nav-item adm-nav-item--logout" onClick={handleLogout}>

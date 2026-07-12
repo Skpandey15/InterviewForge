@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'candidate';
+export type UserRole = 'admin' | 'candidate' | 'interviewer';
 
 export interface User {
   id: string;
@@ -6,6 +6,31 @@ export interface User {
   email: string;
   mobile?: string;
   role: UserRole;
+}
+
+export type FeedbackVerdict = 'Selected' | 'Not Selected';
+
+/** Interviewer's evaluation of a candidate — generated via (mock) LLM, editable. */
+export interface CandidateFeedback {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  improvements: string[];
+  verdict: FeedbackVerdict;
+  by: string; // interviewer name
+  at: string; // ISO datetime
+}
+
+export interface Interviewer {
+  id: string;
+  name: string;
+  email: string;
+  expertise: string;
+}
+
+export interface Technology {
+  id: string;
+  name: string;
 }
 
 export interface AuthSession {
@@ -115,6 +140,8 @@ export interface Candidate {
   email: string;
   technology: string;
   assignedInterview?: string;
+  assignedInterviewer?: string;
+  feedback?: CandidateFeedback;
   status: CandidateStatus;
   progress: CandidateProgress;
   score?: number;

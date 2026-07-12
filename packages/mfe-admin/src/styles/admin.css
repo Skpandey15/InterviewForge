@@ -527,3 +527,39 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Feedback page (role: interviewer + admin) ---- */
+.adm-feedback {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .adm-feedback { grid-template-columns: 1fr; }
+}
+.adm-feedback__picker { display: flex; flex-direction: column; gap: 16px; }
+.adm-feedback__meta {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; border-radius: 10px;
+  background: rgba(148, 163, 184, 0.10);
+}
+.adm-feedback__meta > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.adm-feedback__meta span { font-size: 12px; }
+.adm-feedback__actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 4px; }
+.adm-field { display: flex; flex-direction: column; gap: 6px; }
+.adm-field > span { font-size: 13px; font-weight: 600; }
+.adm-textarea {
+  width: 100%; resize: vertical; padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px; font: inherit; background: transparent; color: inherit;
+}
+.adm-textarea:focus { outline: none; border-color: var(--c-primary, #6366f1); }
+.adm-verdict { display: flex; gap: 10px; }
+.adm-verdict__btn {
+  flex: 1; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent; color: inherit; font: inherit; font-weight: 600;
+}
+.adm-verdict__btn--yes { border-color: var(--c-success, #16a34a); background: rgba(22, 163, 74, 0.12); color: var(--c-success, #16a34a); }
+.adm-verdict__btn--no { border-color: var(--c-danger, #dc2626); background: rgba(220, 38, 38, 0.12); color: var(--c-danger, #dc2626); }

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import {
   ADMIN_DEMO_CREDENTIALS,
+  INTERVIEWER_DEMO_CREDENTIALS,
   ApiError,
   Button,
   Checkbox,
@@ -46,7 +47,8 @@ export default function LoginPage() {
     try {
       const session = await api.login(email, password);
       toast(`Welcome back, ${session.user.name.split(' ')[0]}!`, 'success');
-      navigate(session.user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+      const staff = session.user.role === 'admin' || session.user.role === 'interviewer';
+      navigate(staff ? '/admin' : '/dashboard', { replace: true });
     } catch (error) {
       setFormError(error instanceof ApiError ? error.message : 'Something went wrong. Please try again.');
     } finally {
@@ -116,6 +118,8 @@ export default function LoginPage() {
 
           <p className="auth-demo-hint">
             Candidate demo — <code>{DEMO_CREDENTIALS.email}</code> / <code>{DEMO_CREDENTIALS.password}</code>
+            <br />
+            Interviewer demo — <code>{INTERVIEWER_DEMO_CREDENTIALS.email}</code> / <code>{INTERVIEWER_DEMO_CREDENTIALS.password}</code>
             <br />
             Admin demo — <code>{ADMIN_DEMO_CREDENTIALS.email}</code> / <code>{ADMIN_DEMO_CREDENTIALS.password}</code>
           </p>

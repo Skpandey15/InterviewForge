@@ -18,7 +18,7 @@ const ResultPage = lazy(() => import('mfe_results/ResultPage'));
 const AdminApp = lazy(() => import('mfe_admin/AdminApp'));
 
 function roleHome(role: string | undefined): string {
-  return role === 'admin' ? '/admin' : '/dashboard';
+  return role === 'admin' || role === 'interviewer' ? '/admin' : '/dashboard';
 }
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -27,10 +27,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function RequireAdmin({ children }: { children: ReactNode }) {
+/** Staff portal (/admin/*): shared by admins and interviewers, role-scoped inside. */
+function RequireStaff({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
-  if (session.user.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  if (session.user.role !== 'admin' && session.user.role !== 'interviewer') {
+    return <Navigate to="/dashboard" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -67,15 +70,15 @@ export function App() {
           }
         />
 
-        {/* Admin portal — the remote owns everything below /admin */}
+        {/* Staff portal (admin + interviewer) — the remote owns everything below /admin */}
         <Route
           path="/admin/*"
           element={
-            <RequireAdmin>
+            <RequireStaff>
               <RemoteBoundary remoteName="admin">
                 <AdminApp />
               </RemoteBoundary>
-            </RequireAdmin>
+            </RequireStaff>
           }
         />
 

@@ -4,6 +4,8 @@ import {
   DASHBOARD_DATA,
   DEMO_CREDENTIALS,
   DEMO_USER,
+  INTERVIEWER_DEMO_CREDENTIALS,
+  INTERVIEWER_DEMO_USER,
   RECENT_INTERVIEWS,
   SEED_RESULT,
   getImprovementsFor,
@@ -52,6 +54,7 @@ const RESETTABLE_KEYS = [
   'aip.admin.candidates',
   'aip.admin.questions',
   'aip.admin.templates',
+  'aip.admin.technologies',
 ];
 if (API_MODE === 'mock') {
   try {
@@ -126,6 +129,12 @@ const mockApi = {
       return session;
     }
 
+    if (normalized === INTERVIEWER_DEMO_CREDENTIALS.email && password === INTERVIEWER_DEMO_CREDENTIALS.password) {
+      const session = { token: issueToken(INTERVIEWER_DEMO_USER.id), user: INTERVIEWER_DEMO_USER };
+      authStore.setSession(session);
+      return session;
+    }
+
     const users = readStore<StoredUser[]>(USERS_KEY, []);
     const match = users.find((u) => u.email === normalized && u.password === password);
     if (!match) {
@@ -143,7 +152,12 @@ const mockApi = {
     const email = payload.email.trim().toLowerCase();
     const users = readStore<StoredUser[]>(USERS_KEY, []);
 
-    if (email === DEMO_CREDENTIALS.email || email === ADMIN_DEMO_CREDENTIALS.email || users.some((u) => u.email === email)) {
+    if (
+      email === DEMO_CREDENTIALS.email ||
+      email === ADMIN_DEMO_CREDENTIALS.email ||
+      email === INTERVIEWER_DEMO_CREDENTIALS.email ||
+      users.some((u) => u.email === email)
+    ) {
       throw new ApiError('An account with this email already exists.', 409);
     }
 

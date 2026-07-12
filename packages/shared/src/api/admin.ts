@@ -6,14 +6,20 @@ import {
   SEED_QUESTIONS,
   SEED_TEMPLATES,
 } from '../data/adminMock';
+import { INTERVIEWER_DEMO_USER, TECHNOLOGIES } from '../data/mock';
+import { authStore } from '../auth/store';
 import { ApiError } from './index';
 import type {
   AdminDashboardData,
   AnalyticsData,
   BankQuestion,
   Candidate,
+  CandidateFeedback,
+  FeedbackVerdict,
   InterviewTemplate,
+  Interviewer,
   QuestionType,
+  Technology,
 } from '../types';
 
 /**
@@ -24,7 +30,32 @@ import type {
 const CANDIDATES_KEY = 'aip.admin.candidates';
 const QUESTIONS_KEY = 'aip.admin.questions';
 const TEMPLATES_KEY = 'aip.admin.templates';
+const TECHNOLOGIES_KEY = 'aip.admin.technologies';
 const LATENCY_MS = 450;
+
+/** Interviewers available to assign to candidates (static roster in mock mode). */
+const SEED_INTERVIEWERS: Interviewer[] = [
+  { id: INTERVIEWER_DEMO_USER.id, name: INTERVIEWER_DEMO_USER.name, email: INTERVIEWER_DEMO_USER.email, expertise: 'Java Backend · System Design' },
+  { id: 'int-002', name: 'Neha Kapoor', email: 'neha.kapoor@demo.com', expertise: 'React · Frontend' },
+  { id: 'int-003', name: 'Vikram Rao', email: 'vikram.rao@demo.com', expertise: 'Data Engineering · Python' },
+];
+
+const FEEDBACK_STRENGTHS = [
+  'Communicates solutions clearly and structures answers well',
+  'Solid grasp of core fundamentals and language internals',
+  'Handles follow-up questions with confidence',
+  'Reasons about trade-offs rather than reciting memorised answers',
+];
+const FEEDBACK_WEAKNESSES = [
+  'Hesitant on scale/estimation in system-design questions',
+  'Limited depth on concurrency and failure modes',
+  'Sometimes jumps to code before clarifying requirements',
+];
+const FEEDBACK_IMPROVEMENTS = [
+  'Practise low-level design and clear API contracts',
+  'Deepen Kubernetes, networking and observability knowledge',
+  'Improve DSA problem-solving speed with timed drills',
+];
 
 function delay(ms = LATENCY_MS): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -47,6 +78,10 @@ function writeCollection(key: string, value: unknown): void {
 
 function newId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+}
+
+function seedTechnologies(): Technology[] {
+  return TECHNOLOGIES.map((t, i) => ({ id: `tech-seed-${i}`, name: t.label }));
 }
 
 const AI_QUESTION_TEMPLATES: Record<QuestionType, string[]> = {
@@ -150,6 +185,109 @@ export const adminApi = {
     };
     writeCollection(CANDIDATES_KEY, candidates);
     return candidates[index];
+  },
+
+  /** Admin: assign an interviewer to a candidate. */
+  async assignInterviewer(candidateId: string, interviewerName: string): Promise<Candidate> {
+    await delay();
+    const candidates = readCollection<Candidate>(CANDIDATES_KEY, SEED_CANDIDATES);
+    const index = candidates.findIndex((c) => c.id === candidateId);
+    if (index === -1) throw new ApiError('Candidate not found.', 404);
+    candidates[index] = {
+      ...candidates[index],
+      assignedInterviewer: interviewerName,
+      lastActivity: new Date().toISOString().slice(0, 10),
+    };
+    writeCollection(CANDIDATES_KEY, candidates);
+    return candidates[index];
+  },
+
+  /** Admin: edit a candidate's core details. */
+  async updateCandidate(
+    candidateId: string,
+    patch: Partial<Pick<Candidate, 'name' | 'email' | 'technology'>>,
+  ): Promise<Candidate> {
+    await delay();
+    const candidates = readCollection<Candidate>(CANDIDATES_KEY, SEED_CANDIDATES);
+    const index = candidates.findIndex((c) => c.id === candidateId);
+    if (index === -1) throw new ApiError('Candidate not found.', 404);
+    candidates[index] = {
+      ...candidates[index],
+      ...(patch.name != null ? { name: patch.name.trim() } : {}),
+      ...(patch.email != null ? { email: patch.email.trim().toLowerCase() } : {}),
+      ...(patch.technology != null ? { technology: patch.technology } : {}),
+      lastActivity: new Date().toISOString().slice(0, 10),
+    };
+    writeCollection(CANDIDATES_KEY, candidates);
+    return candidates[index];
+  },
+
+  /* ---------- Interviewer feedback (mock LLM) ---------- */
+
+  async getInterviewers(): Promise<Interviewer[]> {
+    await delay(250);
+    return SEED_INTERVIEWERS.slice();
+  },
+
+  /** Simulates an LLM drafting structured feedback from the candidate's result. */
+  async generateFeedback(candidateId: string): Promise<CandidateFeedback> {
+    await delay(1100); // "the model is thinking"
+    const candidates = readCollection<Candidate>(CANDIDATES_KEY, SEED_CANDIDATES);
+    const candidate = candidates.find((c) => c.id === candidateId);
+    if (!candidate) throw new ApiError('Candidate not found.', 404);
+    const score = candidate.score ?? 62;
+    const verdict: FeedbackVerdict = score >= 65 ? 'Selected' : 'Not Selected';
+    const strongCount = score >= 75 ? 4 : score >= 60 ? 3 : 2;
+    return {
+      summary:
+        `${candidate.name} scored ${score}% on ${candidate.technology}. ` +
+        (verdict === 'Selected'
+          ? 'Overall a strong performance that meets the bar for the role.'
+          : 'Fundamentals are partly in place but the performance is below the bar for now.'),
+      strengths: FEEDBACK_STRENGTHS.slice(0, strongCount),
+      weaknesses: FEEDBACK_WEAKNESSES.slice(0, score >= 75 ? 1 : 2),
+      improvements: FEEDBACK_IMPROVEMENTS.slice(0, 3),
+      verdict,
+      by: authStore.getSession()?.user.name ?? 'Interviewer',
+      at: new Date().toISOString(),
+    };
+  },
+
+  /** Interviewer: persist (edited) feedback onto the candidate. */
+  async saveFeedback(candidateId: string, feedback: CandidateFeedback): Promise<Candidate> {
+    await delay();
+    const candidates = readCollection<Candidate>(CANDIDATES_KEY, SEED_CANDIDATES);
+    const index = candidates.findIndex((c) => c.id === candidateId);
+    if (index === -1) throw new ApiError('Candidate not found.', 404);
+    candidates[index] = {
+      ...candidates[index],
+      feedback,
+      progress: 'Completed',
+      lastActivity: new Date().toISOString().slice(0, 10),
+    };
+    writeCollection(CANDIDATES_KEY, candidates);
+    return candidates[index];
+  },
+
+  /* ---------- Technologies ---------- */
+
+  async getTechnologies(): Promise<Technology[]> {
+    await delay(250);
+    return readCollection<Technology>(TECHNOLOGIES_KEY, seedTechnologies());
+  },
+
+  /** Admin: add a technology to the catalogue. */
+  async addTechnology(name: string): Promise<Technology> {
+    await delay();
+    const trimmed = name.trim();
+    if (!trimmed) throw new ApiError('Technology name is required.', 400);
+    const techs = readCollection<Technology>(TECHNOLOGIES_KEY, seedTechnologies());
+    if (techs.some((t) => t.name.toLowerCase() === trimmed.toLowerCase())) {
+      throw new ApiError('That technology already exists.', 409);
+    }
+    const tech: Technology = { id: newId('tech'), name: trimmed };
+    writeCollection(TECHNOLOGIES_KEY, [...techs, tech]);
+    return tech;
   },
 
   /* ---------- Question bank ---------- */
