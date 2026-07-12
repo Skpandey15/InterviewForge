@@ -56,6 +56,11 @@ export default function CandidatesPage() {
   const [assignTemplate, setAssignTemplate] = useState('');
   const [pickedInterviewer, setPickedInterviewer] = useState('');
 
+  const [editTarget, setEditTarget] = useState<Candidate | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editTech, setEditTech] = useState('');
+
   const reload = useCallback(async () => {
     const [list, tpls, ints] = await Promise.all([
       adminApi.getCandidates(),
@@ -144,6 +149,37 @@ export default function CandidatesPage() {
       toast(`${pickedInterviewer} assigned to ${interviewerTarget.name}.`, 'success');
       setInterviewerTarget(null);
       await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openEdit = (candidate: Candidate) => {
+    setEditTarget(candidate);
+    setEditName(candidate.name);
+    setEditEmail(candidate.email);
+    setEditTech(candidate.technology);
+  };
+
+  const handleEdit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editTarget) return;
+    if (!editName.trim() || !editEmail.includes('@')) {
+      toast('Enter a valid name and email.', 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      await adminApi.updateCandidate(editTarget.id, {
+        name: editName,
+        email: editEmail,
+        technology: editTech,
+      });
+      toast(`${editName.trim()} updated.`, 'success');
+      setEditTarget(null);
+      await reload();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Failed to update candidate.', 'error');
     } finally {
       setBusy(false);
     }
@@ -251,6 +287,11 @@ export default function CandidatesPage() {
                           <Icon name="user" size={12} /> Interviewer
                         </button>
                       )}
+                      {isAdmin && (
+                        <button type="button" className="data-table__view" onClick={() => openEdit(candidate)}>
+                          <Icon name="edit" size={12} /> Edit
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="data-table__view"
@@ -335,6 +376,35 @@ export default function CandidatesPage() {
             </Button>
           </form>
         )}
+      </Modal>
+
+      <Modal
+        title={`Edit Candidate — ${editTarget?.name ?? ''}`}
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+      >
+        <form className="adm-form" onSubmit={handleEdit}>
+          <TextField label="Full Name" icon="user" value={editName} onChange={(e) => setEditName(e.target.value)} />
+          <TextField
+            label="Email Address"
+            icon="mail"
+            type="email"
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+          />
+          <SelectField
+            label="Primary Technology"
+            options={[...new Set([editTech, ...TECHNOLOGIES.map((t) => t.label)].filter(Boolean))].map((l) => ({
+              value: l,
+              label: l,
+            }))}
+            value={editTech}
+            onChange={(e) => setEditTech(e.target.value)}
+          />
+          <Button type="submit" block loading={busy}>
+            Save Changes
+          </Button>
+        </form>
       </Modal>
     </div>
   );
