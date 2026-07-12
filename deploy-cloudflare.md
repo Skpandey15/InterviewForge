@@ -162,6 +162,35 @@ requirements and a fallback if the workspace mount misbehaves.
 
 ---
 
+## 8. Datadog RUM (Real User Monitoring)
+
+The frontend ships the Datadog RUM SDK (`packages/shell/src/observability/datadog.ts`),
+wired at startup. It is **inert until you supply credentials**, so nothing is
+sent to Datadog unless configured.
+
+To activate: Datadog → Digital Experience → RUM → Applications → **New
+Application** (Browser). Copy the **Application ID** and **Client Token**, then
+build/deploy with these env vars set:
+
+```bash
+VITE_DD_RUM_APPLICATION_ID=<app-id> \
+VITE_DD_RUM_CLIENT_TOKEN=<client-token> \
+VITE_DD_SITE=datadoghq.com \
+VITE_DD_ENV=production \
+npm run deploy
+```
+
+For the GitHub-integration build (§6), set the same `VITE_DD_*` variables in the
+Cloudflare Pages project → Settings → Environment variables. Optional:
+`VITE_DD_SITE` (regional, e.g. `datadoghq.eu`), `VITE_DD_SERVICE`,
+`VITE_DD_VERSION`, `VITE_DD_SESSION_REPLAY_SAMPLE_RATE` (0–100, default 0).
+
+> Datadog **backend** monitoring (APM traces / metrics / logs from the Java &
+> Python services) is separate from RUM and does not run on Cloudflare — it
+> needs a Datadog Agent + `DD_API_KEY` alongside the services.
+
+---
+
 ## Log out (if ever needed)
 
 ```bash

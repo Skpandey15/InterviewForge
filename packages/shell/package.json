@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@aip/shared": "*",
+    "@datadog/browser-rum": "^7.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^7.6.0"
