@@ -40,6 +40,21 @@ AI_REFUSALS = Counter(
     "Question generations refused for insufficient KB coverage (grounded-or-refuse)",
     ["technology"],
 )
+AI_PROVIDER_ERRORS = Counter(
+    "ai_provider_errors_total",
+    "LLM provider call failures (each retry/failover-triggering error)",
+    ["provider", "operation"],
+)
+AI_PROVIDER_FAILOVERS = Counter(
+    "ai_provider_failovers_total",
+    "LLM provider failovers from the primary to a fallback provider",
+    ["from_provider", "to_provider", "operation"],
+)
+AI_DEAD_LETTER = Counter(
+    "ai_dead_letter_total",
+    "Messages routed to the dead-letter topic after processing failed",
+    ["topic"],
+)
 
 metrics_app = make_asgi_app()
 

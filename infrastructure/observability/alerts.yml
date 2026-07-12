@@ -1,0 +1,61 @@
+# Prometheus alerting rules — the "operations alerted" link of the resilience
+# chain. Metrics come from the ai-gateway (/metrics) and interview-platform
+# (/actuator/prometheus, via resilience4j-micrometer). Routed to Alertmanager.
+groups:
+  - name: ai-resilience
+    rules:
+      - alert: AiProviderFailingOver
+        expr: increase(ai_provider_failovers_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM primary provider is failing over"
+          description: "ai-gateway failed over from the primary provider to a fallback in the last 5m ({{ $value }} events). Primary LLM may be degraded."
+
+      - alert: AiGatewayCircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{name="ai-gateway",state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ai-gateway circuit breaker is OPEN"
+          description: "interview-platform has tripped the ai-gateway circuit breaker for >1m; question generation is serving the curated fallback bank."
+
+      - alert: AiDeadLetterMessages
+        expr: increase(ai_dead_letter_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Messages routed to dead-letter topic"
+          description: "{{ $value }} evaluation message(s) went to the DLQ in the last 10m — a payload or provider problem needs investigation."
+
+      - alert: AiEvaluationGroundednessLow
+        expr: ai_evaluation_groundedness < 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI evaluation groundedness is low"
+          description: "Groundedness has been below 0.5 for 15m (currently {{ $value }}); evaluations may be poorly supported by rubric points."
+
+      - alert: AiHighRefusalRate
+        expr: increase(ai_generation_refusals_total[15m]) > 5
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High question-generation refusal rate"
+          description: "grounded-or-refuse rejected {{ $value }} generations in 15m — KB coverage may have regressed."
+
+  - name: platform
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} target is down"
+          description: "Prometheus cannot scrape {{ $labels.job }} ({{ $labels.instance }}) for >2m."

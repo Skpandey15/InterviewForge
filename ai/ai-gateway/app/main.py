@@ -22,7 +22,7 @@ from .schemas import QuestionSetRequest, QuestionSetResponse
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("ai-gateway")
 
-provider = build_provider(config.LLM_PROVIDER, config.OPENAI_API_KEY, config.OPENAI_MODEL)
+provider = build_provider(config)
 
 
 @asynccontextmanager

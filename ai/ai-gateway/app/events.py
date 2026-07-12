@@ -1,7 +1,8 @@
 """Kafka wiring: consume interview.session-submitted, produce
 evaluation.score-calculated. Runs on a daemon thread; at-least-once with
-per-event error isolation (a poison message logs and skips rather than
-wedging the consumer — DLQ lands in Phase 2)."""
+per-event error isolation. A message that fails processing is routed to the
+dead-letter topic (interview.session-submitted.dlq) with error metadata rather
+than being silently dropped, so nothing is lost and operators can alert on it."""
 
 import json
 import logging
@@ -107,4 +108,22 @@ class EvaluationWorker:
             log.info("Session %s scored %s%% (groundedness %.2f)",
                      result.sessionId, result.overallScore, result.groundedness)
         except Exception as error:
-            log.error("Failed to process message (%s); skipping. Payload head: %.120s", error, raw)
+            self._dead_letter(producer, raw, error)
+
+    def _dead_letter(self, producer: KafkaProducer, raw: str, error: Exception) -> None:
+        """Route an unprocessable message to the dead-letter topic with error
+        metadata, so it is retained for inspection and alertable, not dropped."""
+        log.error("Failed to process message (%s); routing to DLQ %s. Payload head: %.120s",
+                  error, config.TOPIC_SESSION_SUBMITTED_DLQ, raw)
+        telemetry.AI_DEAD_LETTER.labels(config.TOPIC_SESSION_SUBMITTED).inc()
+        dlq_record = {
+            "originalTopic": config.TOPIC_SESSION_SUBMITTED,
+            "error": str(error),
+            "failedAt": datetime.now(timezone.utc).isoformat(),
+            "payload": raw,
+        }
+        try:
+            producer.send(config.TOPIC_SESSION_SUBMITTED_DLQ,
+                          key=str(uuid.uuid4()), value=dlq_record).get(timeout=10)
+        except Exception as publish_error:  # noqa: BLE001 — never wedge the loop on DLQ failure
+            log.error("Dead-letter publish failed (%s); message dropped", publish_error)

@@ -34,12 +34,46 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+  health:
+    circuitbreakers:
+      enabled: true
   tracing:
     sampling:
       probability: 1.0
   otlp:
     tracing:
       endpoint: ${AIP_OTLP_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+
+# Retry + circuit breaker around the ai-gateway call (AiGatewayQuestionClient).
+# Metrics (resilience4j_circuitbreaker_state, resilience4j_retry_calls) are
+# exported to Prometheus for the alert rules in infrastructure/observability.
+resilience4j:
+  circuitbreaker:
+    instances:
+      ai-gateway:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 20s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      ai-gateway:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # Retry only transient faults; a 4xx (HttpClientErrorException) is a bug,
+        # not a blip, and an open breaker fails over immediately.
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+          - java.lang.IllegalStateException
+        ignore-exceptions:
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
 
 aip:
   jwt:

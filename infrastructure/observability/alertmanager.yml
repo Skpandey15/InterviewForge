@@ -1,0 +1,27 @@
+# Alertmanager routing. The default receiver is intentionally empty (no-op) so
+# the pipeline is functional out of the box without secrets — plug in Slack,
+# email, or PagerDuty below when you want to be paged. Alerts are still visible
+# in the Alertmanager UI (http://localhost:9093) and Prometheus /alerts.
+route:
+  receiver: default
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+receivers:
+  - name: default
+    # Example integrations (uncomment and configure one):
+    # slack_configs:
+    #   - api_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+    #     channel: "#alerts"
+    #     send_resolved: true
+    # webhook_configs:
+    #   - url: "http://host.docker.internal:5001/hook"
+    #     send_resolved: true
+
+inhibit_rules:
+  # A critical alert silences a warning for the same alertname.
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
+    equal: ["alertname"]
