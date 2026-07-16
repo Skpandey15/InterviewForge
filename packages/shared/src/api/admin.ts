@@ -393,6 +393,21 @@ export const adminApi = {
     return readCollection<InterviewTemplate>(TEMPLATES_KEY, SEED_TEMPLATES);
   },
 
+  /**
+   * Published interviews assigned to a candidate, by email — the candidate
+   * portal's "Start Interview" list. Candidates never self-configure an
+   * interview: they can only run what an interviewer assigned to them.
+   * Assignments live in these collections (mock in both API modes).
+   */
+  async getAssignedInterviews(email: string): Promise<InterviewTemplate[]> {
+    await delay(350);
+    const candidates = readCollection<Candidate>(CANDIDATES_KEY, SEED_CANDIDATES);
+    const me = candidates.find((c) => c.email.toLowerCase() === email.trim().toLowerCase());
+    if (!me || me.status === 'Disabled' || !me.assignedInterview) return [];
+    const templates = readCollection<InterviewTemplate>(TEMPLATES_KEY, SEED_TEMPLATES);
+    return templates.filter((t) => t.name === me.assignedInterview && t.status === 'Published');
+  },
+
   async saveTemplate(
     template: Omit<InterviewTemplate, 'id' | 'updatedAt' | 'status'> & { id?: string },
     status: InterviewTemplate['status'],

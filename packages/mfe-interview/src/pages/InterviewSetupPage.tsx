@@ -1,28 +1,25 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   API_MODE,
   ApiError,
+  Badge,
   Button,
   Card,
-  Checkbox,
   DIFFICULTY_LEVELS,
-  DURATIONS,
   EXPERIENCE_LEVELS,
   Icon,
-  QUESTION_COUNTS,
   QUESTION_TYPES,
-  Radio,
-  SelectField,
+  Spinner,
   TECHNOLOGIES,
+  adminApi,
   api,
-  getSettings,
   interviewApi,
   toast,
   useAuth,
-  type AiVoice,
   type InterviewConfig,
   type InterviewSessionData,
+  type InterviewTemplate,
 } from '@aip/shared';
 import { LiveInterviewScreen } from '../components/LiveInterviewScreen';
 import { InterviewRunScreen } from '../components/InterviewRunScreen';
@@ -33,61 +30,65 @@ function labelOf(options: { value: string; label: string }[], value: string): st
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
+/**
+ * The run config comes entirely from the assigned interview — the candidate
+ * does not choose technology, difficulty, duration or question mix.
+ */
+function configFromTemplate(template: InterviewTemplate): InterviewConfig {
+  const d = template.distribution;
+  const total = d.mcq + d.coding + d.systemDesign + d.behavioral;
+  const hasMcq = d.mcq > 0;
+  const hasOpen = d.coding + d.systemDesign + d.behavioral > 0;
+  return {
+    technology: template.technology,
+    experienceLevel: template.experienceLevel,
+    difficulty: template.difficulty,
+    durationMinutes: template.durationMinutes,
+    questionCount: total > 0 ? total : 5,
+    questionType: hasMcq && hasOpen ? 'mixed' : hasMcq ? 'mcq' : 'coding',
+    aiVoice: 'female',
+    webcamEnabled: template.aiSettings.webcamMonitoring,
+    micEnabled: template.aiSettings.micMonitoring,
+  };
+}
+
 export default function InterviewSetupPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  // Prefilled from the user's saved Settings → Interview Defaults.
-  const [defaults] = useState(() => getSettings(user?.id).defaults);
-  const [technology, setTechnology] = useState(defaults.technology);
-  const [experienceLevel, setExperienceLevel] = useState(defaults.experienceLevel);
-  const [difficulty, setDifficulty] = useState(defaults.difficulty);
-  const [duration, setDuration] = useState(defaults.duration);
-  const [questionCount, setQuestionCount] = useState(defaults.questionCount);
-  const [questionType, setQuestionType] = useState(defaults.questionType);
-  const [aiVoice, setAiVoice] = useState<AiVoice>(defaults.aiVoice);
-  const [webcamEnabled, setWebcamEnabled] = useState(defaults.webcamEnabled);
-  const [micEnabled, setMicEnabled] = useState(defaults.micEnabled);
 
+  const [assigned, setAssigned] = useState<InterviewTemplate[] | null>(null);
   const [session, setSession] = useState<InterviewSessionData | null>(null);
-  const [starting, setStarting] = useState(false);
+  const [startingId, setStartingId] = useState('');
   /** Mock mode: the interactive run (question set + the config it was built from). */
   const [run, setRun] = useState<{ questions: MockQuestion[]; config: InterviewConfig } | null>(null);
 
-  const buildConfig = (): InterviewConfig => ({
-    technology,
-    experienceLevel,
-    difficulty,
-    durationMinutes: Number(duration),
-    questionCount: Number(questionCount),
-    questionType,
-    aiVoice,
-    webcamEnabled,
-    micEnabled,
-  });
-
-  /** Real backend: create the session and move into the answer screen. */
-  const startRealInterview = async () => {
-    setStarting(true);
-    try {
-      setSession(await interviewApi.start(buildConfig()));
-    } catch (error) {
-      toast(error instanceof ApiError ? error.message : 'Could not start the interview.', 'error');
-    } finally {
-      setStarting(false);
+  const load = useCallback(async () => {
+    if (!user?.email) {
+      setAssigned([]);
+      return;
     }
-  };
+    setAssigned(await adminApi.getAssignedInterviews(user.email));
+  }, [user?.email]);
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    if (starting || run) return;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const startTemplate = async (template: InterviewTemplate) => {
+    const config = configFromTemplate(template);
 
     if (API_MODE === 'real') {
-      void startRealInterview();
+      setStartingId(template.id);
+      try {
+        setSession(await interviewApi.start(config));
+      } catch (error) {
+        toast(error instanceof ApiError ? error.message : 'Could not start the interview.', 'error');
+      } finally {
+        setStartingId('');
+      }
       return;
     }
 
-    // Mock mode: build the question set and enter the interactive run screen.
-    const config = buildConfig();
     setRun({ questions: generateQuestions(config), config });
   };
 
@@ -142,14 +143,13 @@ export default function InterviewSetupPage() {
     );
   }
 
+  // Real backend: the live streaming interviewer screen.
   if (session) {
     return (
       <div className="page interview-setup">
         <header className="interview-setup__header">
           <div>
-            <h1 className="page__title">
-              {labelOf(TECHNOLOGIES, session.technology)} Interview
-            </h1>
+            <h1 className="page__title">{labelOf(TECHNOLOGIES, session.technology)} Interview</h1>
             <p className="page__subtitle">
               {labelOf(EXPERIENCE_LEVELS, session.level)} · {labelOf(DIFFICULTY_LEVELS, session.difficulty)}
             </p>
@@ -157,8 +157,8 @@ export default function InterviewSetupPage() {
         </header>
         <LiveInterviewScreen
           session={session}
-          webcamEnabled={webcamEnabled}
-          micEnabled={micEnabled}
+          webcamEnabled
+          micEnabled
           onComplete={() => navigate(`/results/${session.id}`)}
           onAbort={() => {
             setSession(null);
@@ -173,120 +173,89 @@ export default function InterviewSetupPage() {
     <div className="page interview-setup">
       <header className="interview-setup__header">
         <div>
-          <h1 className="page__title">Configure Your Interview</h1>
-          <p className="page__subtitle">Select the preferences for your AI interview</p>
+          <h1 className="page__title">Start Interview</h1>
+          <p className="page__subtitle">Interviews assigned to you by your interviewer.</p>
         </div>
         <span className="interview-setup__header-icon" aria-hidden="true">
           <Icon name="message-square" size={26} />
         </span>
       </header>
 
-      <form onSubmit={handleSubmit}>
-        <div className="interview-setup__grid">
-          <Card>
-            <SelectField
-              label="Technology"
-              options={TECHNOLOGIES}
-              value={technology}
-              onChange={(e) => setTechnology(e.target.value)}
-            />
-          </Card>
-          <Card>
-            <SelectField
-              label="Experience Level"
-              options={EXPERIENCE_LEVELS}
-              value={experienceLevel}
-              onChange={(e) => setExperienceLevel(e.target.value)}
-            />
-          </Card>
-          <Card>
-            <SelectField
-              label="Difficulty Level"
-              options={DIFFICULTY_LEVELS}
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-            />
-          </Card>
-          <Card>
-            <SelectField
-              label="Interview Duration"
-              options={DURATIONS}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-            />
-          </Card>
-          <Card>
-            <SelectField
-              label="Number of Questions"
-              options={QUESTION_COUNTS}
-              value={questionCount}
-              onChange={(e) => setQuestionCount(e.target.value)}
-            />
-          </Card>
-          <Card>
-            <SelectField
-              label="Question Type"
-              options={QUESTION_TYPES}
-              value={questionType}
-              onChange={(e) => setQuestionType(e.target.value)}
-            />
-          </Card>
-          <Card>
-            <fieldset className="option-group">
-              <legend className="field__label">AI Voice</legend>
-              <div className="option-group__options">
-                <Radio
-                  name="ai-voice"
-                  label="Male"
-                  value="male"
-                  checked={aiVoice === 'male'}
-                  onChange={() => setAiVoice('male')}
-                />
-                <Radio
-                  name="ai-voice"
-                  label="Female"
-                  value="female"
-                  checked={aiVoice === 'female'}
-                  onChange={() => setAiVoice('female')}
-                />
-              </div>
-            </fieldset>
-          </Card>
-          <Card>
-            <div className="option-group">
-              <span className="field__label">
-                <Icon name="video" size={14} /> Camera
-              </span>
-              <Checkbox
-                label="Enable Webcam"
-                checked={webcamEnabled}
-                onChange={(e) => setWebcamEnabled(e.target.checked)}
-              />
-            </div>
-          </Card>
-          <Card>
-            <div className="option-group">
-              <span className="field__label">
-                <Icon name="mic" size={14} /> Microphone
-              </span>
-              <Checkbox
-                label="Enable Microphone"
-                checked={micEnabled}
-                onChange={(e) => setMicEnabled(e.target.checked)}
-              />
-            </div>
-          </Card>
+      {!assigned ? (
+        <div className="block-state">
+          <Spinner size={28} />
+          <p>Loading your assigned interviews…</p>
         </div>
-
-        <div className="interview-setup__actions">
-          <Button type="submit" size="lg" icon="play" loading={starting}>
-            Start Interview
-          </Button>
-          <Button variant="outline" size="lg" onClick={() => navigate('/dashboard')}>
-            Cancel
-          </Button>
+      ) : assigned.length === 0 ? (
+        <Card>
+          <div className="block-state">
+            <Icon name="clock" size={34} />
+            <p className="block-state__title">No interview assigned yet</p>
+            <p>
+              Your interviewer hasn&apos;t assigned an interview to you yet. Once they do, it will appear here
+              and you can start it.
+            </p>
+            <Button variant="outline" onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <div className="assigned-list">
+          {assigned.map((template) => {
+            const config = configFromTemplate(template);
+            const proctoring = [
+              template.aiSettings.webcamMonitoring && 'Webcam',
+              template.aiSettings.micMonitoring && 'Mic',
+              template.aiSettings.tabSwitchDetection && 'Tab-switch detection',
+            ].filter(Boolean) as string[];
+            return (
+              <Card key={template.id} className="assigned">
+                <div className="assigned__main">
+                  <h2 className="assigned__name">{template.name}</h2>
+                  <div className="assigned__badges">
+                    <Badge tone="info">{labelOf(TECHNOLOGIES, template.technology)}</Badge>
+                    <Badge tone="neutral">{labelOf(EXPERIENCE_LEVELS, template.experienceLevel)}</Badge>
+                    <Badge tone="warning">{labelOf(DIFFICULTY_LEVELS, template.difficulty)}</Badge>
+                  </div>
+                  <dl className="assigned__facts">
+                    <div>
+                      <dt>Duration</dt>
+                      <dd>{template.durationMinutes} minutes</dd>
+                    </div>
+                    <div>
+                      <dt>Questions</dt>
+                      <dd>{config.questionCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Distribution</dt>
+                      <dd>
+                        {template.distribution.mcq} MCQ · {template.distribution.coding} Coding ·{' '}
+                        {template.distribution.systemDesign} System Design · {template.distribution.behavioral}{' '}
+                        Behavioral
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Proctoring</dt>
+                      <dd>{proctoring.length > 0 ? proctoring.join(' · ') : 'Off'}</dd>
+                    </div>
+                  </dl>
+                </div>
+                <div className="assigned__action">
+                  <Button
+                    size="lg"
+                    icon="play"
+                    loading={startingId === template.id}
+                    onClick={() => void startTemplate(template)}
+                  >
+                    Start Interview
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
         </div>
-      </form>
+      )}
     </div>
   );
 }
