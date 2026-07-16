@@ -20,6 +20,8 @@ import type {
   Interviewer,
   QuestionType,
   Technology,
+  User,
+  UserRole,
 } from '../types';
 
 /**
@@ -33,12 +35,23 @@ const TEMPLATES_KEY = 'aip.admin.templates';
 const TECHNOLOGIES_KEY = 'aip.admin.technologies';
 const LATENCY_MS = 450;
 
-/** Interviewers available to assign to candidates (static roster in mock mode). */
-const SEED_INTERVIEWERS: Interviewer[] = [
-  { id: INTERVIEWER_DEMO_USER.id, name: INTERVIEWER_DEMO_USER.name, email: INTERVIEWER_DEMO_USER.email, expertise: 'Java Backend · System Design' },
-  { id: 'int-002', name: 'Neha Kapoor', email: 'neha.kapoor@demo.com', expertise: 'React · Frontend' },
-  { id: 'int-003', name: 'Vikram Rao', email: 'vikram.rao@demo.com', expertise: 'Data Engineering · Python' },
-];
+/**
+ * The registration store, shared with the candidate api — "onboarded users".
+ * Admins promote users from here to the interviewer role.
+ */
+const USERS_KEY = 'aip.users';
+
+interface StoredUser extends User {
+  password: string;
+}
+
+/** The built-in demo interviewer; real interviewers are promoted onboarded users. */
+const DEMO_INTERVIEWER: Interviewer = {
+  id: INTERVIEWER_DEMO_USER.id,
+  name: INTERVIEWER_DEMO_USER.name,
+  email: INTERVIEWER_DEMO_USER.email,
+  expertise: 'Java Backend · System Design',
+};
 
 const FEEDBACK_STRENGTHS = [
   'Communicates solutions clearly and structures answers well',
@@ -247,9 +260,40 @@ export const adminApi = {
 
   /* ---------- Interviewer feedback (mock LLM) ---------- */
 
+  /** The demo interviewer plus every onboarded user promoted to interviewer. */
   async getInterviewers(): Promise<Interviewer[]> {
     await delay(250);
-    return SEED_INTERVIEWERS.slice();
+    const promoted = readCollection<StoredUser>(USERS_KEY, [])
+      .filter((u) => u.role === 'interviewer')
+      .map<Interviewer>((u) => ({ id: u.id, name: u.name, email: u.email, expertise: 'Interviewer' }));
+    return [DEMO_INTERVIEWER, ...promoted];
+  },
+
+  /* ---------- Onboarded users (registration store) ---------- */
+
+  /** Users who registered themselves — the pool an admin can promote from. */
+  async getOnboardedUsers(): Promise<User[]> {
+    await delay(300);
+    return readCollection<StoredUser>(USERS_KEY, []).map(({ password: _pw, ...user }) => ({
+      ...user,
+      role: user.role ?? 'candidate',
+    }));
+  },
+
+  /**
+   * Admin: change an onboarded user's role (e.g. promote to interviewer).
+   * Takes effect on their next sign-in, since the role is stamped into the
+   * session at login.
+   */
+  async setUserRole(userId: string, role: UserRole): Promise<User> {
+    await delay();
+    const users = readCollection<StoredUser>(USERS_KEY, []);
+    const index = users.findIndex((u) => u.id === userId);
+    if (index === -1) throw new ApiError('User not found.', 404);
+    users[index] = { ...users[index], role };
+    writeCollection(USERS_KEY, users);
+    const { password: _pw, ...user } = users[index];
+    return user;
   },
 
   /** Simulates an LLM drafting structured feedback from the candidate's result. */

@@ -21,9 +21,11 @@ function roleHome(role: string | undefined): string {
   return role === 'admin' || role === 'interviewer' ? '/admin' : '/dashboard';
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
+/** Candidate portal: staff are sent to their own portal, not the candidate one. */
+function RequireCandidate({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
+  if (session.user.role !== 'candidate') return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
 
@@ -85,9 +87,9 @@ export function App() {
         {/* Candidate portal */}
         <Route
           element={
-            <RequireAuth>
+            <RequireCandidate>
               <AppLayout />
-            </RequireAuth>
+            </RequireCandidate>
           }
         >
           <Route

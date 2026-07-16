@@ -24,8 +24,10 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin/feedback', label: 'Feedback', icon: 'message-square' },
   { to: '/admin/questions', label: 'Question Bank', icon: 'file-text', roles: ['admin'] },
   { to: '/admin/technologies', label: 'Technologies', icon: 'layers', roles: ['admin'] },
+  { to: '/admin/users', label: 'Users', icon: 'shield', roles: ['admin'] },
   { to: '/admin/analytics', label: 'Analytics', icon: 'pie-chart', roles: ['admin'] },
   { to: '/admin/reports', label: 'Reports', icon: 'download', roles: ['admin'] },
+  { to: '/admin/profile', label: 'My Profile', icon: 'user' },
 ];
 
 export function AdminLayout() {

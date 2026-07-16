@@ -563,3 +563,14 @@
 }
 .adm-verdict__btn--yes { border-color: var(--c-success, #16a34a); background: rgba(22, 163, 74, 0.12); color: var(--c-success, #16a34a); }
 .adm-verdict__btn--no { border-color: var(--c-danger, #dc2626); background: rgba(220, 38, 38, 0.12); color: var(--c-danger, #dc2626); }
+
+/* ---- Staff profile ---- */
+.staff-profile { display: flex; align-items: center; gap: 16px; }
+.staff-profile__avatar {
+  flex: none; width: 56px; height: 56px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px;
+  background: rgba(99, 102, 241, 0.15); color: var(--c-primary, #6366f1);
+}
+.staff-profile__id { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.staff-profile__id strong { font-size: 17px; }

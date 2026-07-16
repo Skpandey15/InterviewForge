@@ -10,6 +10,8 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import ReportsPage from './pages/ReportsPage';
 import FeedbackPage from './pages/FeedbackPage';
 import TechnologiesPage from './pages/TechnologiesPage';
+import UsersPage from './pages/UsersPage';
+import StaffProfilePage from './pages/StaffProfilePage';
 import './styles/admin.css';
 
 /** Admin-only route guard — interviewers are bounced back to the dashboard. */
@@ -32,8 +34,10 @@ export default function AdminApp() {
         <Route path="candidates" element={<CandidatesPage />} />
         <Route path="builder" element={<InterviewBuilderPage />} />
         <Route path="feedback" element={<FeedbackPage />} />
+        <Route path="profile" element={<StaffProfilePage />} />
         <Route path="questions" element={<AdminOnly><QuestionBankPage /></AdminOnly>} />
         <Route path="technologies" element={<AdminOnly><TechnologiesPage /></AdminOnly>} />
+        <Route path="users" element={<AdminOnly><UsersPage /></AdminOnly>} />
         <Route path="analytics" element={<AdminOnly><AnalyticsPage /></AdminOnly>} />
         <Route path="reports" element={<AdminOnly><ReportsPage /></AdminOnly>} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
