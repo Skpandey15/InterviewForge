@@ -6,6 +6,7 @@ export * from './data/mock';
 export * from './data/adminMock';
 export { api, ApiError, API_MODE, AUTH_BASE_URL, INTERVIEW_BASE_URL, interviewApi } from './api';
 export { adminApi } from './api/admin';
+export type { AiDistribution, AiGenerateOptions } from './api/admin';
 
 // Utils
 export { buildPdf, downloadBlob, downloadPdf } from './utils/pdf';

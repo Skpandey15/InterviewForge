@@ -88,20 +88,43 @@ const AI_QUESTION_TEMPLATES: Record<QuestionType, string[]> = {
   MCQ: [
     'Which statement about {tech} garbage collection / resource cleanup is correct under high load?',
     'What is the primary trade-off when tuning {tech} for throughput over latency?',
+    'In {tech}, which approach best prevents a thundering herd when a hot cache entry expires?',
+    'Which {tech} setting most directly affects tail latency (p99) rather than average latency?',
+    'Which failure mode is most likely when a {tech} service is scaled horizontally without sticky state?',
+    'What is the correct way to apply backpressure in a {tech} pipeline that is saturating downstream?',
   ],
   Coding: [
     'Implement a bounded worker pool in {tech} that processes jobs with retry and backoff.',
     'Write a {tech} function that merges K sorted streams with O(N log K) complexity.',
+    'Implement an idempotent {tech} handler that safely processes duplicate messages.',
+    'Write a {tech} routine that batches writes and flushes on size or elapsed time, whichever comes first.',
+    'Implement retry with exponential backoff and jitter in {tech}, and explain the jitter choice.',
   ],
   'System Design': [
     'Design a multi-region deployment strategy for a {tech} based service with 99.95% SLA.',
     'Design an event-driven audit pipeline around {tech} handling 50k events/sec.',
+    'Design a read-heavy {tech} service serving 100k RPS within a 50ms p99 budget.',
+    'Design the sharding and resharding strategy for a {tech} datastore that has outgrown one node.',
+    'Design a zero-downtime migration plan for a {tech} service with an active client base.',
   ],
   Behavioral: [
     'Describe a situation where you had to defend a {tech} architecture decision to non-engineers.',
     'Tell me about mentoring a junior engineer through their first {tech} production issue.',
+    'Describe a {tech} incident you owned end-to-end and what you changed afterwards.',
+    'Tell me about a time you disagreed with a teammate on a {tech} approach. How did it resolve?',
+    'Describe a time you traded {tech} technical debt against a deadline. Would you decide the same way now?',
   ],
 };
+
+/** How generated questions are spread across question types. */
+export type AiDistribution = 'mixed' | QuestionType;
+
+export interface AiGenerateOptions {
+  technology: string;
+  difficulty: BankQuestion['difficulty'];
+  count: number;
+  distribution: AiDistribution;
+}
 
 export const adminApi = {
   async getDashboard(): Promise<AdminDashboardData> {
@@ -310,18 +333,51 @@ export const adminApi = {
     return question;
   },
 
-  async generateAiQuestion(technology: string, type: QuestionType): Promise<BankQuestion> {
-    await delay(1100); // "the model is thinking"
-    const pool = AI_QUESTION_TEMPLATES[type];
-    const text = pool[Math.floor(Math.random() * pool.length)].replace('{tech}', technology);
-    return this.addQuestion({
-      text,
-      technology,
-      type,
-      difficulty: 'Medium',
-      tags: ['ai-generated', technology.toLowerCase().replace(/\s+/g, '-')],
-      source: 'AI Generated',
-    });
+  /**
+   * Generate a batch of questions for one technology/difficulty, spread across
+   * the chosen distribution. Templates are cycled (not picked at random) and
+   * checked against the existing bank, so a run never adds a duplicate — it
+   * returns fewer questions instead, and the caller reports the shortfall.
+   */
+  async generateAiQuestions(options: AiGenerateOptions): Promise<BankQuestion[]> {
+    await delay(1200); // "the model is thinking"
+    const existing = readCollection<BankQuestion>(QUESTIONS_KEY, SEED_QUESTIONS);
+    const seen = new Set(existing.map((q) => q.text.toLowerCase()));
+
+    const types: QuestionType[] =
+      options.distribution === 'mixed'
+        ? ['MCQ', 'Coding', 'System Design', 'Behavioral']
+        : [options.distribution];
+
+    const created: BankQuestion[] = [];
+    for (let i = 0; i < options.count; i += 1) {
+      const type = types[i % types.length];
+      const pool = AI_QUESTION_TEMPLATES[type];
+      // Walk the pool from a rotating offset until we find text not already used.
+      let text: string | null = null;
+      for (let k = 0; k < pool.length; k += 1) {
+        const candidate = pool[(i + k) % pool.length].replace('{tech}', options.technology);
+        if (!seen.has(candidate.toLowerCase())) {
+          text = candidate;
+          break;
+        }
+      }
+      if (!text) continue; // pool exhausted for this type — skip rather than duplicate
+      seen.add(text.toLowerCase());
+      created.push({
+        id: newId('q'),
+        text,
+        technology: options.technology,
+        type,
+        difficulty: options.difficulty,
+        tags: ['ai-generated', options.technology.toLowerCase().replace(/\s+/g, '-')],
+        timesUsed: 0,
+        source: 'AI Generated',
+      });
+    }
+
+    if (created.length > 0) writeCollection(QUESTIONS_KEY, [...created, ...existing]);
+    return created;
   },
 
   async deleteQuestion(id: string): Promise<void> {

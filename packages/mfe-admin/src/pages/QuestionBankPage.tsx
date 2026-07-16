@@ -12,11 +12,26 @@ import {
   BANK_DIFFICULTIES,
   QUESTION_TYPE_OPTIONS,
   TECHNOLOGIES,
+  type AiDistribution,
   type BankQuestion,
   type QuestionType,
+  type Technology,
 } from '@aip/shared';
 
 const ALL = 'all';
+
+const GENERATE_COUNTS = [1, 3, 5, 10, 15, 20].map((n) => ({
+  value: String(n),
+  label: `${n} question${n === 1 ? '' : 's'}`,
+}));
+
+const DISTRIBUTION_OPTIONS: { value: AiDistribution; label: string }[] = [
+  { value: 'mixed', label: 'Mixed (all types)' },
+  { value: 'MCQ', label: 'MCQ only' },
+  { value: 'Coding', label: 'Coding only' },
+  { value: 'System Design', label: 'System Design only' },
+  { value: 'Behavioral', label: 'Behavioral only' },
+];
 
 function difficultyTone(difficulty: BankQuestion['difficulty']): 'success' | 'info' | 'warning' | 'neutral' {
   switch (difficulty) {
@@ -33,12 +48,19 @@ function difficultyTone(difficulty: BankQuestion['difficulty']): 'success' | 'in
 
 export default function QuestionBankPage() {
   const [questions, setQuestions] = useState<BankQuestion[] | null>(null);
+  const [catalogue, setCatalogue] = useState<Technology[]>([]);
   const [search, setSearch] = useState('');
   const [techFilter, setTechFilter] = useState(ALL);
   const [typeFilter, setTypeFilter] = useState(ALL);
   const [createOpen, setCreateOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // AI generator controls.
+  const [genCount, setGenCount] = useState('5');
+  const [genTech, setGenTech] = useState(TECHNOLOGIES[0].label);
+  const [genDifficulty, setGenDifficulty] = useState('Medium');
+  const [genDistribution, setGenDistribution] = useState<AiDistribution>('mixed');
 
   const [draftText, setDraftText] = useState('');
   const [draftTech, setDraftTech] = useState(TECHNOLOGIES[0].label);
@@ -47,7 +69,9 @@ export default function QuestionBankPage() {
   const [draftTags, setDraftTags] = useState('');
 
   const reload = useCallback(async () => {
-    setQuestions(await adminApi.getQuestions());
+    const [list, techs] = await Promise.all([adminApi.getQuestions(), adminApi.getTechnologies()]);
+    setQuestions(list);
+    setCatalogue(techs);
   }, []);
 
   useEffect(() => {
@@ -69,6 +93,12 @@ export default function QuestionBankPage() {
     const set = new Set((questions ?? []).map((q) => q.technology));
     return [...set].sort();
   }, [questions]);
+
+  /** Generator/create options come from the managed Technologies catalogue. */
+  const techOptions = useMemo(() => {
+    const names = catalogue.length > 0 ? catalogue.map((t) => t.name) : TECHNOLOGIES.map((t) => t.label);
+    return names.map((name) => ({ value: name, label: name }));
+  }, [catalogue]);
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -99,12 +129,23 @@ export default function QuestionBankPage() {
   };
 
   const handleGenerate = async () => {
+    const requested = Number(genCount);
     setGenerating(true);
     try {
-      const tech = techFilter !== ALL ? techFilter : TECHNOLOGIES[Math.floor(Math.random() * TECHNOLOGIES.length)].label;
-      const type = (typeFilter !== ALL ? typeFilter : 'MCQ') as QuestionType;
-      const question = await adminApi.generateAiQuestion(tech, type);
-      toast(`AI generated a ${question.type} question for ${question.technology}.`, 'success');
+      const created = await adminApi.generateAiQuestions({
+        technology: genTech,
+        difficulty: genDifficulty as BankQuestion['difficulty'],
+        count: requested,
+        distribution: genDistribution,
+      });
+      if (created.length === 0) {
+        toast(`No new questions — the bank already has every ${genTech} question we can generate.`, 'info');
+      } else if (created.length < requested) {
+        // Be honest about the shortfall rather than silently adding duplicates.
+        toast(`Generated ${created.length} of ${requested} — the rest would have duplicated existing questions.`, 'info');
+      } else {
+        toast(`AI generated ${created.length} ${genTech} question${created.length === 1 ? '' : 's'}.`, 'success');
+      }
       await reload();
     } finally {
       setGenerating(false);
@@ -124,15 +165,54 @@ export default function QuestionBankPage() {
           <h1 className="page__title">Question Bank</h1>
           <p className="page__subtitle">Curate, tag and generate the questions used in interviews.</p>
         </div>
-        <div className="adm-page__actions">
+      </header>
+
+      <Card>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+          <SelectField
+            label="Number of Questions"
+            options={GENERATE_COUNTS}
+            value={genCount}
+            onChange={(e) => setGenCount(e.target.value)}
+          />
+          <SelectField
+            label="Technology"
+            options={techOptions}
+            value={genTech}
+            onChange={(e) => setGenTech(e.target.value)}
+          />
+          <SelectField
+            label="Difficulty"
+            options={BANK_DIFFICULTIES}
+            value={genDifficulty}
+            onChange={(e) => setGenDifficulty(e.target.value)}
+          />
+          <SelectField
+            label="Question Distribution"
+            options={DISTRIBUTION_OPTIONS}
+            value={genDistribution}
+            onChange={(e) => setGenDistribution(e.target.value as AiDistribution)}
+          />
+        </div>
+        <div
+          style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', flexWrap: 'wrap' }}
+        >
           <Button variant="outline" icon="zap" loading={generating} onClick={handleGenerate}>
             AI Generate Question
           </Button>
-          <Button icon="plus" onClick={() => setCreateOpen(true)}>
+          <Button
+            icon="plus"
+            onClick={() => {
+              // Carry the panel's choices into the manual form.
+              setDraftTech(genTech);
+              setDraftDifficulty(genDifficulty);
+              setCreateOpen(true);
+            }}
+          >
             Create Question
           </Button>
         </div>
-      </header>
+      </Card>
 
       <div className="adm-toolbar">
         <TextField
@@ -214,7 +294,7 @@ export default function QuestionBankPage() {
           <div className="adm-grid adm-grid--3">
             <SelectField
               label="Technology"
-              options={TECHNOLOGIES.map((t) => ({ value: t.label, label: t.label }))}
+              options={techOptions}
               value={draftTech}
               onChange={(e) => setDraftTech(e.target.value)}
             />
