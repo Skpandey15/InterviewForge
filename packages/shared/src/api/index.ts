@@ -230,19 +230,37 @@ const mockApi = {
    * Simulates running the full interview + evaluation pipeline and
    * returns the persisted result id.
    */
-  async completeInterview(config: InterviewConfig, labels: { technology: string; level: string }): Promise<string> {
+  /**
+   * @param scorePercent when the candidate actually answered a question set, the
+   *   real 0-100 score — the result is centred on it instead of being simulated.
+   */
+  async completeInterview(
+    config: InterviewConfig,
+    labels: { technology: string; level: string },
+    scorePercent?: number,
+  ): Promise<string> {
     await delay(300);
 
     const difficultyBase: Record<string, number> = { easy: 88, medium: 82, hard: 76, expert: 72 };
-    const base = difficultyBase[config.difficulty] ?? 80;
+    const answered = scorePercent != null;
+    const base = answered
+      ? Math.max(0, Math.min(100, Math.round(scorePercent)))
+      : difficultyBase[config.difficulty] ?? 80;
+    // Answered runs vary around the real score; simulated runs use the old curve.
+    const pick = (offset: number, spread: number): number =>
+      answered
+        ? Math.max(0, Math.min(100, Math.round(base + (Math.random() - 0.5) * spread)))
+        : scoreFor(base + offset, spread);
 
     const breakdown: ScoreBreakdownItem[] = [
-      { key: 'technical', label: 'Technical Skills', score: scoreFor(base + 4, 14), color: 'var(--c-success)' },
-      { key: 'problem-solving', label: 'Problem Solving', score: scoreFor(base, 16), color: 'var(--c-primary)' },
-      { key: 'communication', label: 'Communication', score: scoreFor(base - 2, 12), color: 'var(--c-purple)' },
-      { key: 'system-design', label: 'System Design', score: scoreFor(base + 2, 16), color: 'var(--c-orange)' },
+      { key: 'technical', label: 'Technical Skills', score: pick(4, 14), color: 'var(--c-success)' },
+      { key: 'problem-solving', label: 'Problem Solving', score: pick(0, 16), color: 'var(--c-primary)' },
+      { key: 'communication', label: 'Communication', score: pick(-2, 12), color: 'var(--c-purple)' },
+      { key: 'system-design', label: 'System Design', score: pick(2, 16), color: 'var(--c-orange)' },
     ];
-    const overall = Math.round(breakdown.reduce((sum, b) => sum + b.score, 0) / breakdown.length);
+    const overall = answered
+      ? base
+      : Math.round(breakdown.reduce((sum, b) => sum + b.score, 0) / breakdown.length);
     const passed = overall >= 60;
 
     const result: InterviewResult = {

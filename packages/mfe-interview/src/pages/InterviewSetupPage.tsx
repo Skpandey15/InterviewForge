@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
   API_MODE,
@@ -10,7 +10,6 @@ import {
   DURATIONS,
   EXPERIENCE_LEVELS,
   Icon,
-  ProgressBar,
   QUESTION_COUNTS,
   QUESTION_TYPES,
   Radio,
@@ -26,16 +25,9 @@ import {
   type InterviewSessionData,
 } from '@aip/shared';
 import { LiveInterviewScreen } from '../components/LiveInterviewScreen';
+import { InterviewRunScreen } from '../components/InterviewRunScreen';
+import { generateQuestions, type MockQuestion } from '../lib/mockQuestions';
 import '../styles/interview.css';
-
-const SIMULATION_STEPS = [
-  'Generating your question set…',
-  'Preparing the AI interviewer…',
-  'Conducting the interview…',
-  'Evaluating your answers…',
-];
-
-const STEP_DURATION_MS = 1200;
 
 function labelOf(options: { value: string; label: string }[], value: string): string {
   return options.find((o) => o.value === value)?.label ?? value;
@@ -56,12 +48,10 @@ export default function InterviewSetupPage() {
   const [webcamEnabled, setWebcamEnabled] = useState(defaults.webcamEnabled);
   const [micEnabled, setMicEnabled] = useState(defaults.micEnabled);
 
-  const [runningStep, setRunningStep] = useState<number | null>(null);
   const [session, setSession] = useState<InterviewSessionData | null>(null);
   const [starting, setStarting] = useState(false);
-  const timersRef = useRef<number[]>([]);
-
-  useEffect(() => () => timersRef.current.forEach((t) => window.clearTimeout(t)), []);
+  /** Mock mode: the interactive run (question set + the config it was built from). */
+  const [run, setRun] = useState<{ questions: MockQuestion[]; config: InterviewConfig } | null>(null);
 
   const buildConfig = (): InterviewConfig => ({
     technology,
@@ -89,39 +79,68 @@ export default function InterviewSetupPage() {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (runningStep !== null || starting) return;
+    if (starting || run) return;
 
     if (API_MODE === 'real') {
       void startRealInterview();
       return;
     }
 
+    // Mock mode: build the question set and enter the interactive run screen.
     const config = buildConfig();
-
-    setRunningStep(0);
-    SIMULATION_STEPS.forEach((_, index) => {
-      if (index === 0) return;
-      timersRef.current.push(window.setTimeout(() => setRunningStep(index), index * STEP_DURATION_MS));
-    });
-    timersRef.current.push(
-      window.setTimeout(async () => {
-        try {
-          const resultId = await api.completeInterview(config, {
-            technology: labelOf(TECHNOLOGIES, technology),
-            level: labelOf(EXPERIENCE_LEVELS, experienceLevel),
-          });
-          toast('Interview completed — here is your result!', 'success');
-          navigate(`/results/${resultId}`);
-        } catch {
-          setRunningStep(null);
-          toast('Could not complete the interview. Please try again.', 'error');
-        }
-      }, SIMULATION_STEPS.length * STEP_DURATION_MS),
-    );
+    setRun({ questions: generateQuestions(config), config });
   };
 
-  const progress =
-    runningStep === null ? 0 : Math.round(((runningStep + 1) / SIMULATION_STEPS.length) * 100);
+  /** Called by the run screen on submit (or when the timer expires). */
+  const finishMockRun = async (scorePercent: number) => {
+    if (!run) return;
+    try {
+      const resultId = await api.completeInterview(
+        run.config,
+        {
+          technology: labelOf(TECHNOLOGIES, run.config.technology),
+          level: labelOf(EXPERIENCE_LEVELS, run.config.experienceLevel),
+        },
+        scorePercent,
+      );
+      toast('Interview submitted — here is your result!', 'success');
+      navigate(`/results/${resultId}`);
+    } catch {
+      toast('Could not submit the interview. Please try again.', 'error');
+    }
+  };
+
+  // Mock mode: the interactive interview (questions + answers + timer).
+  if (run) {
+    return (
+      <div className="page interview-setup">
+        <header className="interview-setup__header">
+          <div>
+            <h1 className="page__title">{labelOf(TECHNOLOGIES, run.config.technology)} Interview</h1>
+            <p className="page__subtitle">
+              {labelOf(EXPERIENCE_LEVELS, run.config.experienceLevel)} ·{' '}
+              {labelOf(DIFFICULTY_LEVELS, run.config.difficulty)} · {run.questions.length} questions
+            </p>
+          </div>
+        </header>
+        <InterviewRunScreen
+          questions={run.questions}
+          config={run.config}
+          labels={{
+            technology: labelOf(TECHNOLOGIES, run.config.technology),
+            level: labelOf(EXPERIENCE_LEVELS, run.config.experienceLevel),
+            difficulty: labelOf(DIFFICULTY_LEVELS, run.config.difficulty),
+            questionType: labelOf(QUESTION_TYPES, run.config.questionType),
+          }}
+          onComplete={finishMockRun}
+          onAbort={() => {
+            setRun(null);
+            toast('Interview abandoned.', 'info');
+          }}
+        />
+      </div>
+    );
+  }
 
   if (session) {
     return (
@@ -268,23 +287,6 @@ export default function InterviewSetupPage() {
           </Button>
         </div>
       </form>
-
-      {runningStep !== null && (
-        <div className="interview-run" role="dialog" aria-modal="true" aria-label="Interview in progress">
-          <div className="interview-run__card">
-            <span className="interview-run__pulse">
-              <Icon name="message-square" size={28} />
-            </span>
-            <h2>Interview in progress</h2>
-            <p className="interview-run__step">{SIMULATION_STEPS[runningStep]}</p>
-            <ProgressBar value={progress} label="Interview progress" />
-            <p className="interview-run__hint">
-              {labelOf(TECHNOLOGIES, technology)} · {labelOf(DIFFICULTY_LEVELS, difficulty)} ·{' '}
-              {labelOf(QUESTION_COUNTS, questionCount)}
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
