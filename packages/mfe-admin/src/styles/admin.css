@@ -574,3 +574,35 @@
 }
 .staff-profile__id { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .staff-profile__id strong { font-size: 17px; }
+
+/* ---- Resume review modal (staff) ---- */
+.rsm { display: flex; flex-direction: column; gap: 16px; }
+.rsm__ats { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rsm__label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-text-muted, #64748b); display: block; }
+.rsm__score { font-size: 30px; font-weight: 700; display: block; }
+.rsm__score--success { color: var(--c-success, #16a34a); }
+.rsm__score--warning { color: var(--c-orange, #ea580c); }
+.rsm__score--danger { color: var(--c-danger, #dc2626); }
+.rsm__breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.rsm__criterion { display: flex; flex-direction: column; gap: 4px; }
+.rsm__criterion-head { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
+.rsm__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0; }
+.rsm__facts > div { display: flex; flex-direction: column; gap: 2px; }
+.rsm__facts dt { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-text-muted, #64748b); }
+.rsm__facts dd { margin: 0; font-size: 13px; font-weight: 600; }
+.rsm__skills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.rsm__textarea {
+  width: 100%; resize: vertical; padding: 10px 12px; border-radius: 10px; font: inherit; font-size: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.35); background: transparent; color: inherit;
+}
+.rsm__message { white-space: pre-wrap; font-family: inherit; font-size: 13px; line-height: 1.6; margin: 0; max-height: 260px; overflow: auto; }
+.rsm__actions { display: flex; gap: 12px; justify-content: flex-end; }
+.rsm__raw summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+
+/* ---- Interviewer rating ---- */
+.rate-stars { display: flex; align-items: center; gap: 4px; }
+.rate-stars__btn {
+  background: none; border: none; cursor: pointer; font-size: 26px; line-height: 1; padding: 0 2px;
+  color: rgba(148, 163, 184, 0.5);
+}
+.rate-stars__btn--on { color: #f59e0b; }

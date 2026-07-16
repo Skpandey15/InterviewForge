@@ -17,11 +17,15 @@ import {
   adminApi,
   toast,
   type AiSettings,
+  type Candidate,
   type CodingSettings,
   type EvaluationWeights,
   type InterviewTemplate,
   type QuestionDistribution,
 } from '@aip/shared';
+
+const labelOfTech = (value: string): string =>
+  TECHNOLOGIES.find((t) => t.value === value)?.label ?? value;
 
 const DEFAULT_DISTRIBUTION: QuestionDistribution = { mcq: 10, coding: 5, systemDesign: 2, behavioral: 3 };
 
@@ -97,6 +101,58 @@ export default function InterviewBuilderPage() {
   const [templates, setTemplates] = useState<InterviewTemplate[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState<'draft' | 'publish' | null>(null);
+
+  // "Build from resume": candidates who have actually uploaded one.
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
+  const [resumeCandidates, setResumeCandidates] = useState<Candidate[]>([]);
+  const [pickedResumeEmail, setPickedResumeEmail] = useState('');
+  const [buildingFromResume, setBuildingFromResume] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const candidates = await adminApi.getCandidates();
+      const withResume: Candidate[] = [];
+      for (const candidate of candidates) {
+        if (await adminApi.getResume(candidate.email)) withResume.push(candidate);
+      }
+      setResumeCandidates(withResume);
+      setPickedResumeEmail((current) => current || withResume[0]?.email || '');
+    })();
+  }, []);
+
+  /** Map the resume's strongest skill + years onto the builder's fields. */
+  const buildFromResume = async () => {
+    const candidate = resumeCandidates.find((c) => c.email === pickedResumeEmail);
+    if (!candidate) return;
+    setBuildingFromResume(true);
+    try {
+      const resume = await adminApi.getResume(candidate.email);
+      if (!resume) {
+        toast('That candidate no longer has a resume.', 'error');
+        return;
+      }
+      // Match a detected skill to a technology option; fall back to the current one.
+      const tech =
+        TECHNOLOGIES.find((t) => resume.skills.some((s) => s.toLowerCase() === t.label.toLowerCase()))?.value ??
+        TECHNOLOGIES.find((t) =>
+          resume.skills.some((s) => t.label.toLowerCase().includes(s.toLowerCase())),
+        )?.value ??
+        technology;
+      const years = resume.experienceYears;
+      const level =
+        years >= 12 ? 'principal' : years >= 8 ? 'senior-8-12' : years >= 5 ? 'senior-5-8' : years >= 3 ? 'mid' : 'junior';
+
+      setEditingId(undefined);
+      setName(`${candidate.name} — ${labelOfTech(tech)} (from resume)`);
+      setTechnology(tech);
+      setExperienceLevel(level);
+      setDifficulty(years >= 8 ? 'hard' : years >= 3 ? 'medium' : 'easy');
+      setResumePickerOpen(false);
+      toast(`Pre-filled from ${candidate.name}'s resume — review and publish.`, 'success');
+    } finally {
+      setBuildingFromResume(false);
+    }
+  };
 
   useEffect(() => {
     void adminApi.getTemplates().then(setTemplates);
@@ -195,12 +251,44 @@ export default function InterviewBuilderPage() {
             Design the interview candidates will take — questions, AI behaviour and scoring.
           </p>
         </div>
-        {editingId && (
-          <Button variant="ghost" icon="plus" onClick={resetForm}>
-            New Interview
+        <div className="adm-page__actions">
+          <Button variant="outline" icon="file-text" onClick={() => setResumePickerOpen(true)}>
+            Build from Resume
           </Button>
-        )}
+          {editingId && (
+            <Button variant="ghost" icon="plus" onClick={resetForm}>
+              New Interview
+            </Button>
+          )}
+        </div>
       </header>
+
+      <Modal
+        title="Build interview from a candidate's resume"
+        open={resumePickerOpen}
+        onClose={() => setResumePickerOpen(false)}
+        width={520}
+      >
+        {resumeCandidates.length === 0 ? (
+          <p>No candidate has uploaded a resume yet. Once they do, you can tailor an interview to it here.</p>
+        ) : (
+          <div className="adm-form">
+            <p className="adm-muted">
+              The interview is pre-filled from the resume: technology from the candidate&apos;s strongest
+              detected skill, level from their years of experience.
+            </p>
+            <SelectField
+              label="Candidate"
+              options={resumeCandidates.map((c) => ({ value: c.email, label: `${c.name} — ${c.email}` }))}
+              value={pickedResumeEmail}
+              onChange={(e) => setPickedResumeEmail(e.target.value)}
+            />
+            <Button block loading={buildingFromResume} onClick={() => void buildFromResume()}>
+              Pre-fill Interview
+            </Button>
+          </div>
+        )}
+      </Modal>
 
       <div className="adm-builder">
         <Card className="adm-builder__section">

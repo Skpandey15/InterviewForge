@@ -18,7 +18,9 @@ import type {
   FeedbackVerdict,
   InterviewTemplate,
   Interviewer,
+  InterviewerRating,
   QuestionType,
+  Resume,
   Technology,
   User,
   UserRole,
@@ -33,6 +35,9 @@ const CANDIDATES_KEY = 'aip.admin.candidates';
 const QUESTIONS_KEY = 'aip.admin.questions';
 const TEMPLATES_KEY = 'aip.admin.templates';
 const TECHNOLOGIES_KEY = 'aip.admin.technologies';
+/** Resumes keyed by the owner's email (candidates upload their own). */
+const RESUMES_KEY = 'aip.resumes';
+const RATINGS_KEY = 'aip.admin.interviewer-ratings';
 const LATENCY_MS = 450;
 
 /**
@@ -334,6 +339,65 @@ export const adminApi = {
     };
     writeCollection(CANDIDATES_KEY, candidates);
     return candidates[index];
+  },
+
+  /* ---------- Resumes (uploaded by candidates, read by staff) ---------- */
+
+  /** Candidate: save the analysed resume against their own email. */
+  async saveResume(email: string, resume: Resume): Promise<Resume> {
+    await delay(300);
+    const all = readCollection<Record<string, Resume>>(RESUMES_KEY, [{}])[0] ?? {};
+    all[email.trim().toLowerCase()] = resume;
+    writeCollection(RESUMES_KEY, [all]);
+    return resume;
+  },
+
+  async getResume(email: string): Promise<Resume | null> {
+    await delay(250);
+    const all = readCollection<Record<string, Resume>>(RESUMES_KEY, [{}])[0] ?? {};
+    return all[email.trim().toLowerCase()] ?? null;
+  },
+
+  /** Interviewer: reject a candidature (used when the ATS score is below the bar). */
+  async rejectCandidate(candidateId: string, message: string, by: string): Promise<Candidate> {
+    await delay();
+    const candidates = readCollection<Candidate>(CANDIDATES_KEY, SEED_CANDIDATES);
+    const index = candidates.findIndex((c) => c.id === candidateId);
+    if (index === -1) throw new ApiError('Candidate not found.', 404);
+    candidates[index] = {
+      ...candidates[index],
+      rejection: { at: new Date().toISOString(), by, message },
+      status: 'Disabled',
+      lastActivity: new Date().toISOString().slice(0, 10),
+    };
+    writeCollection(CANDIDATES_KEY, candidates);
+    return candidates[index];
+  },
+
+  /* ---------- Interviewer performance ratings (admin) ---------- */
+
+  async getInterviewerRatings(): Promise<InterviewerRating[]> {
+    await delay(250);
+    return readCollection<InterviewerRating>(RATINGS_KEY, []);
+  },
+
+  /** Admin: rate an interviewer's performance (latest rating per interviewer wins). */
+  async rateInterviewer(interviewerId: string, rating: number, notes: string, by: string): Promise<InterviewerRating> {
+    await delay();
+    if (rating < 1 || rating > 5) throw new ApiError('Rating must be between 1 and 5.', 400);
+    const ratings = readCollection<InterviewerRating>(RATINGS_KEY, []);
+    const entry: InterviewerRating = {
+      interviewerId,
+      rating,
+      notes: notes.trim(),
+      by,
+      at: new Date().toISOString(),
+    };
+    const index = ratings.findIndex((r) => r.interviewerId === interviewerId);
+    if (index === -1) ratings.push(entry);
+    else ratings[index] = entry;
+    writeCollection(RATINGS_KEY, ratings);
+    return entry;
   },
 
   /* ---------- Technologies ---------- */

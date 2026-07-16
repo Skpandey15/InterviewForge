@@ -28,6 +28,45 @@ export interface Interviewer {
   expertise: string;
 }
 
+/* ---------- Resume + ATS ---------- */
+
+export interface AtsCriterion {
+  key: string;
+  label: string;
+  score: number; // 0-100
+  hint: string;
+}
+
+export interface Resume {
+  fileName: string;
+  uploadedAt: string; // ISO datetime
+  summary: string;
+  skills: string[];
+  experienceYears: number;
+  education: string;
+  currentRole: string;
+  atsScore: number; // 0-100
+  atsBreakdown: AtsCriterion[];
+  /** Raw extracted text, kept so the interviewer can read the full resume. */
+  text: string;
+}
+
+/** Below the ATS bar, an interviewer may reject the candidature. */
+export interface CandidateRejection {
+  at: string; // ISO datetime
+  by: string; // interviewer name
+  message: string;
+}
+
+/** Admin's rating of an interviewer's performance. */
+export interface InterviewerRating {
+  interviewerId: string;
+  rating: number; // 1-5
+  notes: string;
+  by: string; // admin name
+  at: string; // ISO datetime
+}
+
 export interface Technology {
   id: string;
   name: string;
@@ -142,6 +181,7 @@ export interface Candidate {
   assignedInterview?: string;
   assignedInterviewer?: string;
   feedback?: CandidateFeedback;
+  rejection?: CandidateRejection;
   status: CandidateStatus;
   progress: CandidateProgress;
   score?: number;

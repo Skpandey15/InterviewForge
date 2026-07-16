@@ -318,3 +318,28 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Resume card (candidate) ---- */
+.resume-card { display: flex; flex-direction: column; gap: 14px; }
+.resume-card__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.resume-card__head .section-title { margin: 0; }
+.resume-card__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.resume-card__paste { display: flex; flex-direction: column; gap: 10px; }
+.resume-card__textarea {
+  width: 100%; resize: vertical; padding: 10px 12px; border-radius: 10px; font: inherit;
+  border: 1px solid rgba(148, 163, 184, 0.35); background: transparent; color: inherit;
+}
+.resume-summary { display: flex; flex-direction: column; gap: 14px; }
+.resume-summary__line { margin: 0; font-size: 15px; line-height: 1.6; }
+.resume-summary__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0; }
+.resume-summary__facts > div { display: flex; flex-direction: column; gap: 2px; }
+.resume-summary__facts dt, .resume-summary__label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--c-text-muted, #64748b);
+}
+.resume-summary__facts dd { margin: 0; font-size: 13px; font-weight: 600; }
+.resume-summary__skills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.resume-chip {
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: rgba(99, 102, 241, 0.12); color: var(--c-primary, #6366f1);
+}

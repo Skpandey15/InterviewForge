@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
+import { ResumeReviewModal } from '../components/ResumeReviewModal';
 import {
   Badge,
   Button,
@@ -56,6 +57,7 @@ export default function CandidatesPage() {
   const [assignTemplate, setAssignTemplate] = useState('');
   const [pickedInterviewer, setPickedInterviewer] = useState('');
 
+  const [resumeTarget, setResumeTarget] = useState<Candidate | null>(null);
   const [editTarget, setEditTarget] = useState<Candidate | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -295,6 +297,13 @@ export default function CandidatesPage() {
                       <button
                         type="button"
                         className="data-table__view"
+                        onClick={() => setResumeTarget(candidate)}
+                      >
+                        <Icon name="file-text" size={12} /> Resume
+                      </button>
+                      <button
+                        type="button"
+                        className="data-table__view"
                         onClick={() => navigate('/admin/feedback')}
                       >
                         <Icon name="message-square" size={12} /> Feedback
@@ -377,6 +386,8 @@ export default function CandidatesPage() {
           </form>
         )}
       </Modal>
+
+      <ResumeReviewModal candidate={resumeTarget} onClose={() => setResumeTarget(null)} onChanged={reload} />
 
       <Modal
         title={`Edit Candidate — ${editTarget?.name ?? ''}`}

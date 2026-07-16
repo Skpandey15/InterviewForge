@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { ResumeCard } from '../components/ResumeCard';
 import {
   Badge,
   Card,
@@ -141,6 +142,10 @@ export default function DashboardPage() {
               linkLabel="View Progress"
               onLinkClick={() => navigate('/results')}
             />
+          </section>
+
+          <section aria-label="Resume">
+            <ResumeCard />
           </section>
 
           <section aria-label="Quick actions">

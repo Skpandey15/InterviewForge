@@ -11,6 +11,7 @@ export type { AiDistribution, AiGenerateOptions } from './api/admin';
 // Utils
 export { buildPdf, downloadBlob, downloadPdf } from './utils/pdf';
 export type { PdfLine } from './utils/pdf';
+export { analyzeResume, extractText, defaultRejectionMessage, ATS_THRESHOLD } from './utils/resume';
 
 // Auth
 export { authStore, useAuth } from './auth/store';
