@@ -23,16 +23,23 @@ class RemoteErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
 
   render() {
     if (this.state.error) {
+      // In production the usual cause is a stale tab: the app was redeployed and
+      // the code-split chunk this page asked for no longer exists. Re-rendering
+      // would request the same missing chunk forever — only a reload recovers,
+      // because it fetches fresh HTML and the new chunk hashes.
+      const isDev = Boolean((import.meta as unknown as { env?: Record<string, unknown> }).env?.DEV);
       return (
         <div className="block-state" role="alert">
           <Icon name="alert-circle" size={36} />
           <p className="block-state__title">This module is unavailable right now</p>
           <p>
-            The <strong>{this.props.remoteName}</strong> microfrontend could not be loaded. Check that its dev
-            server is running.
+            The <strong>{this.props.remoteName}</strong> module could not be loaded.{' '}
+            {isDev
+              ? 'Check that its dev server is running.'
+              : 'The app may have been updated since this tab was opened — reloading usually fixes it.'}
           </p>
-          <Button variant="outline" icon="refresh" onClick={() => this.setState({ error: null })}>
-            Try again
+          <Button variant="outline" icon="refresh" onClick={() => window.location.reload()}>
+            Reload
           </Button>
         </div>
       );
