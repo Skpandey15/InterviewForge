@@ -21,6 +21,13 @@ function AdminOnly({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Interviewer-only route guard — admins are bounced back to the dashboard. */
+function InterviewerOnly({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (user?.role !== 'interviewer') return <Navigate to="/admin" replace />;
+  return <>{children}</>;
+}
+
 /**
  * The staff portal owns its internal routing — the shell mounts it at /admin/*.
  * Candidates + Interview Builder + Feedback are shared by admins and
@@ -31,8 +38,8 @@ export default function AdminApp() {
     <Routes>
       <Route element={<AdminLayout />}>
         <Route index element={<AdminDashboardPage />} />
-        <Route path="candidates" element={<CandidatesPage />} />
-        <Route path="builder" element={<InterviewBuilderPage />} />
+        <Route path="candidates" element={<InterviewerOnly><CandidatesPage /></InterviewerOnly>} />
+        <Route path="builder" element={<InterviewerOnly><InterviewBuilderPage /></InterviewerOnly>} />
         <Route path="feedback" element={<FeedbackPage />} />
         <Route path="profile" element={<StaffProfilePage />} />
         <Route path="questions" element={<AdminOnly><QuestionBankPage /></AdminOnly>} />

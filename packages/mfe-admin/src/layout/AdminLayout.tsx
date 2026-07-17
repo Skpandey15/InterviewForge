@@ -19,8 +19,9 @@ interface NavItem {
  */
 const NAV_ITEMS: NavItem[] = [
   { to: '/admin', label: 'Dashboard', icon: 'home', end: true },
-  { to: '/admin/candidates', label: 'Candidates', icon: 'users' },
-  { to: '/admin/builder', label: 'Interview Builder', icon: 'edit' },
+  // Running the interview process belongs to interviewers; admins manage people.
+  { to: '/admin/candidates', label: 'Candidates', icon: 'users', roles: ['interviewer'] },
+  { to: '/admin/builder', label: 'Interview Builder', icon: 'edit', roles: ['interviewer'] },
   { to: '/admin/feedback', label: 'Feedback', icon: 'message-square' },
   { to: '/admin/questions', label: 'Question Bank', icon: 'file-text', roles: ['admin'] },
   { to: '/admin/technologies', label: 'Technologies', icon: 'layers', roles: ['admin'] },

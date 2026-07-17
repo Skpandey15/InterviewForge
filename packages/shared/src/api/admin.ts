@@ -6,7 +6,13 @@ import {
   SEED_QUESTIONS,
   SEED_TEMPLATES,
 } from '../data/adminMock';
-import { INTERVIEWER_DEMO_USER, TECHNOLOGIES } from '../data/mock';
+import {
+  ADMIN_DEMO_CREDENTIALS,
+  DEMO_CREDENTIALS,
+  INTERVIEWER_DEMO_CREDENTIALS,
+  INTERVIEWER_DEMO_USER,
+  TECHNOLOGIES,
+} from '../data/mock';
 import { authStore } from '../auth/store';
 import { ApiError } from './index';
 import type {
@@ -299,6 +305,83 @@ export const adminApi = {
     writeCollection(USERS_KEY, users);
     const { password: _pw, ...user } = users[index];
     return user;
+  },
+
+  /**
+   * Admin: create a user directly. Written to the same store as self-service
+   * registration, so admin-created and self-registered users appear together
+   * and can both sign in.
+   */
+  async createUser(input: {
+    name: string;
+    email: string;
+    mobile: string;
+    password: string;
+    role: UserRole;
+  }): Promise<User> {
+    await delay();
+    const email = input.email.trim().toLowerCase();
+    if (!input.name.trim()) throw new ApiError('Name is required.', 400);
+    if (!email.includes('@')) throw new ApiError('Enter a valid email address.', 400);
+    if (input.password.length < 8) throw new ApiError('Password needs at least 8 characters.', 400);
+
+    const users = readCollection<StoredUser>(USERS_KEY, []);
+    const taken =
+      users.some((u) => u.email.toLowerCase() === email) ||
+      email === DEMO_CREDENTIALS.email ||
+      email === ADMIN_DEMO_CREDENTIALS.email ||
+      email === INTERVIEWER_DEMO_CREDENTIALS.email;
+    if (taken) throw new ApiError('An account with this email already exists.', 409);
+
+    const created: StoredUser = {
+      id: newId('usr'),
+      name: input.name.trim(),
+      email,
+      mobile: input.mobile.trim(),
+      role: input.role,
+      password: input.password,
+    };
+    writeCollection(USERS_KEY, [...users, created]);
+    const { password: _pw, ...user } = created;
+    return user;
+  },
+
+  /** Admin: edit a user's details and/or role. */
+  async updateUser(
+    userId: string,
+    patch: Partial<Pick<User, 'name' | 'email' | 'mobile' | 'role'>>,
+  ): Promise<User> {
+    await delay();
+    const users = readCollection<StoredUser>(USERS_KEY, []);
+    const index = users.findIndex((u) => u.id === userId);
+    if (index === -1) throw new ApiError('User not found.', 404);
+
+    if (patch.email != null) {
+      const email = patch.email.trim().toLowerCase();
+      if (!email.includes('@')) throw new ApiError('Enter a valid email address.', 400);
+      if (users.some((u, i) => i !== index && u.email.toLowerCase() === email)) {
+        throw new ApiError('Another account already uses this email.', 409);
+      }
+    }
+
+    users[index] = {
+      ...users[index],
+      ...(patch.name != null ? { name: patch.name.trim() } : {}),
+      ...(patch.email != null ? { email: patch.email.trim().toLowerCase() } : {}),
+      ...(patch.mobile != null ? { mobile: patch.mobile.trim() } : {}),
+      ...(patch.role != null ? { role: patch.role } : {}),
+    };
+    writeCollection(USERS_KEY, users);
+    const { password: _pw, ...user } = users[index];
+    return user;
+  },
+
+  /** Admin: remove a user account (they can no longer sign in). */
+  async deleteUser(userId: string): Promise<void> {
+    await delay(300);
+    const users = readCollection<StoredUser>(USERS_KEY, []);
+    if (!users.some((u) => u.id === userId)) throw new ApiError('User not found.', 404);
+    writeCollection(USERS_KEY, users.filter((u) => u.id !== userId));
   },
 
   /** Simulates an LLM drafting structured feedback from the candidate's result. */

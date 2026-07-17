@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   Badge,
   Button,
   Card,
+  Icon,
   Modal,
+  PasswordField,
+  SelectField,
   Spinner,
+  TextField,
   adminApi,
   toast,
   useAuth,
@@ -12,6 +16,14 @@ import {
   type User,
   type UserRole,
 } from '@aip/shared';
+
+const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: 'candidate', label: 'Candidate' },
+  { value: 'interviewer', label: 'Interviewer' },
+  { value: 'admin', label: 'Admin' },
+];
+
+const EMPTY_FORM = { name: '', email: '', mobile: '', password: '', role: 'candidate' as UserRole };
 
 function roleTone(role: UserRole): 'info' | 'warning' | 'neutral' {
   if (role === 'interviewer') return 'warning';
@@ -36,6 +48,14 @@ export default function UsersPage() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Add / edit / delete user.
+  const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<User | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const field = (key: keyof typeof EMPTY_FORM) => (value: string) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
   const reload = useCallback(async () => {
     const [list, rated] = await Promise.all([adminApi.getOnboardedUsers(), adminApi.getInterviewerRatings()]);
     setUsers(list);
@@ -50,6 +70,63 @@ export default function UsersPage() {
     setStars(existing?.rating ?? 3);
     setNotes(existing?.notes ?? '');
     setRateTarget(user);
+  };
+
+  const handleAdd = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await adminApi.createUser(form);
+      toast(`${form.name.trim()} added as ${form.role}.`, 'success');
+      setAddOpen(false);
+      setForm(EMPTY_FORM);
+      await reload();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not add the user.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openEdit = (user: User) => {
+    setForm({ name: user.name, email: user.email, mobile: user.mobile ?? '', password: '', role: user.role });
+    setEditTarget(user);
+  };
+
+  const handleEdit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editTarget) return;
+    setSaving(true);
+    try {
+      await adminApi.updateUser(editTarget.id, {
+        name: form.name,
+        email: form.email,
+        mobile: form.mobile,
+        role: form.role,
+      });
+      toast(`${form.name.trim()} updated.`, 'success');
+      setEditTarget(null);
+      await reload();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not update the user.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
+    try {
+      await adminApi.deleteUser(deleteTarget.id);
+      toast(`${deleteTarget.name} removed.`, 'info');
+      setDeleteTarget(null);
+      await reload();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not remove the user.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveRating = async () => {
@@ -94,7 +171,20 @@ export default function UsersPage() {
       <header className="adm-page__header">
         <div>
           <h1 className="page__title">Users</h1>
-          <p className="page__subtitle">Onboarded users — promote a user to interviewer.</p>
+          <p className="page__subtitle">
+            Everyone who registered themselves or was added here — manage roles and accounts.
+          </p>
+        </div>
+        <div className="adm-page__actions">
+          <Button
+            icon="plus"
+            onClick={() => {
+              setForm(EMPTY_FORM);
+              setAddOpen(true);
+            }}
+          >
+            Add User
+          </Button>
         </div>
       </header>
 
@@ -106,8 +196,8 @@ export default function UsersPage() {
       ) : users.length === 0 ? (
         <Card>
           <div className="block-state">
-            <p className="block-state__title">No onboarded users yet</p>
-            <p>Users appear here after they register an account themselves.</p>
+            <p className="block-state__title">No users yet</p>
+            <p>Users appear here when they register themselves, or when you add one.</p>
           </div>
         </Card>
       ) : (
@@ -148,28 +238,35 @@ export default function UsersPage() {
                   <td>
                     <div className="adm-row-actions">
                       {user.role === 'interviewer' ? (
-                        <>
-                          <Button variant="outline" icon="award" onClick={() => openRate(user)}>
-                            Rate
-                          </Button>
-                          <button
-                            type="button"
-                            className="adm-link-danger"
-                            disabled={busyId === user.id}
-                            onClick={() => changeRole(user, 'candidate')}
-                          >
-                            Revert to Candidate
-                          </button>
-                        </>
+                        <button type="button" className="data-table__view" onClick={() => openRate(user)}>
+                          <Icon name="award" size={12} /> Rate
+                        </button>
                       ) : (
-                        <Button
-                          icon="user"
-                          loading={busyId === user.id}
+                        <button
+                          type="button"
+                          className="data-table__view"
+                          disabled={busyId === user.id}
                           onClick={() => changeRole(user, 'interviewer')}
                         >
-                          Make Interviewer
-                        </Button>
+                          <Icon name="user" size={12} /> Make Interviewer
+                        </button>
                       )}
+                      {user.role === 'interviewer' && (
+                        <button
+                          type="button"
+                          className="data-table__view"
+                          disabled={busyId === user.id}
+                          onClick={() => changeRole(user, 'candidate')}
+                        >
+                          <Icon name="refresh" size={12} /> To Candidate
+                        </button>
+                      )}
+                      <button type="button" className="data-table__view" onClick={() => openEdit(user)}>
+                        <Icon name="edit" size={12} /> Edit
+                      </button>
+                      <button type="button" className="adm-link-danger" onClick={() => setDeleteTarget(user)}>
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -178,6 +275,106 @@ export default function UsersPage() {
           </table>
         </Card>
       )}
+
+      <Modal title="Add User" open={addOpen} onClose={() => setAddOpen(false)}>
+        <form className="adm-form" onSubmit={handleAdd}>
+          <TextField
+            label="Full Name"
+            icon="user"
+            placeholder="Jane Doe"
+            value={form.name}
+            onChange={(e) => field('name')(e.target.value)}
+          />
+          <TextField
+            label="Email Address"
+            icon="mail"
+            type="email"
+            placeholder="name@company.com"
+            value={form.email}
+            onChange={(e) => field('email')(e.target.value)}
+          />
+          <TextField
+            label="Mobile Number"
+            icon="phone"
+            placeholder="9876500000"
+            value={form.mobile}
+            onChange={(e) => field('mobile')(e.target.value)}
+          />
+          <PasswordField
+            label="Temporary Password"
+            placeholder="At least 8 characters"
+            value={form.password}
+            onChange={(e) => field('password')(e.target.value)}
+          />
+          <SelectField
+            label="Role"
+            options={ROLE_OPTIONS}
+            value={form.role}
+            onChange={(e) => field('role')(e.target.value)}
+          />
+          <Button type="submit" block loading={saving}>
+            Add User
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal
+        title={`Edit User — ${editTarget?.name ?? ''}`}
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+      >
+        <form className="adm-form" onSubmit={handleEdit}>
+          <TextField
+            label="Full Name"
+            icon="user"
+            value={form.name}
+            onChange={(e) => field('name')(e.target.value)}
+          />
+          <TextField
+            label="Email Address"
+            icon="mail"
+            type="email"
+            value={form.email}
+            onChange={(e) => field('email')(e.target.value)}
+          />
+          <TextField
+            label="Mobile Number"
+            icon="phone"
+            value={form.mobile}
+            onChange={(e) => field('mobile')(e.target.value)}
+          />
+          <SelectField
+            label="Role"
+            options={ROLE_OPTIONS}
+            value={form.role}
+            onChange={(e) => field('role')(e.target.value)}
+          />
+          <Button type="submit" block loading={saving}>
+            Save Changes
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal
+        title={`Delete ${deleteTarget?.name ?? 'user'}?`}
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+      >
+        <div className="adm-form">
+          <p>
+            This removes <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email}) and they will no longer be
+            able to sign in. This cannot be undone.
+          </p>
+          <div className="rsm__actions">
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" loading={saving} onClick={handleDelete}>
+              Delete User
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         title={`Rate Interviewer — ${rateTarget?.name ?? ''}`}
