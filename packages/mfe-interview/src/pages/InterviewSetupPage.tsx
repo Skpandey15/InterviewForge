@@ -23,7 +23,7 @@ import {
 } from '@aip/shared';
 import { LiveInterviewScreen } from '../components/LiveInterviewScreen';
 import { InterviewRunScreen } from '../components/InterviewRunScreen';
-import { generateQuestions, type MockQuestion } from '../lib/mockQuestions';
+import { generateQuestions, generateQuestionsFromLlm, type MockQuestion } from '../lib/mockQuestions';
 import '../styles/interview.css';
 
 function labelOf(options: { value: string; label: string }[], value: string): string {
@@ -89,7 +89,20 @@ export default function InterviewSetupPage() {
       return;
     }
 
-    setRun({ questions: generateQuestions(config), config });
+    // Real LLM questions when the deployment has a key; curated bank otherwise.
+    setStartingId(template.id);
+    try {
+      const llm = await generateQuestionsFromLlm(config, {
+        technology: labelOf(TECHNOLOGIES, template.technology),
+        level: labelOf(EXPERIENCE_LEVELS, template.experienceLevel),
+      });
+      if (!llm) {
+        toast('No LLM configured — using the built-in question bank.', 'info');
+      }
+      setRun({ questions: llm ?? generateQuestions(config), config });
+    } finally {
+      setStartingId('');
+    }
   };
 
   /** Called by the run screen on submit (or when the timer expires). */

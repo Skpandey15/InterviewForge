@@ -33,6 +33,48 @@ const MCQ_BANK: Record<string, McqSeed[]> = {
       correctIndex: 2,
     },
   ],
+  'spring-boot': [
+    {
+      text: 'In Spring Boot, what is the default scope of a bean declared with @Component?',
+      options: ['prototype', 'singleton', 'request', 'session'],
+      correctIndex: 1,
+    },
+    {
+      text: 'Which annotation would you use to override Spring Boot auto-configuration for a specific bean?',
+      options: ['@Configuration', '@ConditionalOnMissingBean', '@EnableAutoConfiguration', '@ComponentScan'],
+      correctIndex: 1,
+    },
+    {
+      text: 'What does @Transactional(propagation = REQUIRES_NEW) do when called inside an existing transaction?',
+      options: [
+        'Joins the existing transaction',
+        'Suspends the current transaction and starts a new independent one',
+        'Throws if a transaction already exists',
+        'Runs without any transaction',
+      ],
+      correctIndex: 1,
+    },
+    {
+      text: 'Which Spring Boot file property enables the health endpoint over HTTP?',
+      options: [
+        'server.health.enabled',
+        'management.endpoints.web.exposure.include',
+        'spring.actuator.health',
+        'management.health.web',
+      ],
+      correctIndex: 1,
+    },
+    {
+      text: 'Why is constructor injection preferred over field injection in Spring?',
+      options: [
+        'It is faster at runtime',
+        'It makes dependencies explicit and the bean testable/immutable',
+        'It avoids writing a constructor',
+        'It is required for @Autowired to work',
+      ],
+      correctIndex: 1,
+    },
+  ],
   react: [
     {
       text: 'Which hook is used to run a side effect after render?',
@@ -80,6 +122,11 @@ const OPEN_BANK: Record<string, string[]> = {
     'Explain how you would diagnose and fix a memory leak in a production Spring Boot service.',
     'Design a rate limiter for an API handling 10k requests per second.',
   ],
+  'spring-boot': [
+    'Design a Spring Boot REST API for a payments service. Cover layering, validation and error handling.',
+    'A Spring Boot service leaks connections under load. Walk through how you would diagnose and fix it.',
+    'Implement an idempotent Spring Boot endpoint that safely handles duplicate POST retries.',
+  ],
   react: [
     'Write a custom `useDebounce` hook and explain when you would use it.',
     'How would you optimise a React list rendering 10,000 rows? Describe the techniques.',
@@ -92,7 +139,36 @@ const OPEN_BANK: Record<string, string[]> = {
   ],
 };
 
-/** Build the question set from the candidate's chosen config (deterministic). */
+/**
+ * Ask the server-side LLM (Cloudflare Pages Function) for real, technology-specific
+ * questions. Returns null when no LLM is configured (501) or the call fails, so the
+ * caller can fall back to the built-in bank instead of breaking the interview.
+ */
+export async function generateQuestionsFromLlm(
+  config: InterviewConfig,
+  labels: { technology: string; level: string },
+): Promise<MockQuestion[] | null> {
+  try {
+    const response = await fetch('/api/generate-questions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        technology: labels.technology,
+        level: labels.level,
+        difficulty: config.difficulty,
+        count: config.questionCount,
+        questionType: config.questionType,
+      }),
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { questions?: MockQuestion[] };
+    return Array.isArray(data.questions) && data.questions.length > 0 ? data.questions : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Fallback question set built from the curated bank (used when no LLM is configured). */
 export function generateQuestions(config: InterviewConfig): MockQuestion[] {
   const count = Math.max(1, Number(config.questionCount) || 5);
   const mcqPool = [...(MCQ_BANK[config.technology] ?? []), ...MCQ_BANK.default];
