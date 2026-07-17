@@ -88,4 +88,18 @@ public class User {
     public void changePasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
     }
+
+    /** Admin action: promote/demote a user (e.g. CANDIDATE → INTERVIEWER). */
+    public void changeRole(Role role) {
+        this.role = role;
+    }
+
+    /** Admin action: correct a user's email. Uniqueness is checked by the caller. */
+    public void changeEmail(String email) {
+        this.email = email;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 }

@@ -28,6 +28,8 @@ public class DemoUserSeeder {
         return args -> {
             seed(users, encoder, "sunil@demo.com", "Sunil Kumar", "+91 98765 43210", "Demo@123", Role.CANDIDATE);
             seed(users, encoder, "admin@demo.com", "Priya Sharma", "+91 99887 76655", "Admin@123", Role.ADMIN);
+            seed(users, encoder, "interviewer@demo.com", "Rahul Mehta", "+91 98111 22334", "Interview@123",
+                    Role.INTERVIEWER);
         };
     }
 
